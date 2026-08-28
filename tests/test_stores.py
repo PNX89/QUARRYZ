@@ -72,23 +72,104 @@ def test_the_batch_load_never_wrote_the_earlier_vintage_at_all() -> None:
     )
 
 
-def test_the_vintage_in_the_key_keeps_both_and_still_answers_the_question() -> None:
-    """Keeping history is only interesting if the as-of answer survives with it."""
-    assert measurement("vintage_in_key.rows") == 2
-    assert measurement("vintage_in_key.as_of_2020") != measurement("vintage_in_key.as_of_2021"), (
-        "the two as-of answers are equal, so the fixture holds no revision and the comparison "
-        "between the two designs shows nothing"
+def test_the_pair_key_keeps_both_and_still_answers_the_question() -> None:
+    """Keeping history is only interesting if the as-of answer survives with it.
+
+    Measured on two versions the publisher really did release on the same day, so the as-of
+    projection has to break the tie as well as the storage: argMax over the DATE alone has no
+    defined answer here, which is the same defect one level up.
+    """
+    assert measurement("vintage_and_version.rows") == 2
+    assert measurement("vintage_and_version.as_of_v3") != measurement(
+        "vintage_and_version.as_of_v4"
+    ), (
+        "the two as-of answers are equal, so the fixture holds no same-day pair and the "
+        "comparison between the two designs shows nothing"
     )
 
 
-def test_no_store_claims_to_lose_nothing_while_naming_what_decides_the_loss() -> None:
-    """A contradiction inside one entry, which is how a table of prose goes quietly wrong."""
+def test_an_entry_claiming_to_lose_nothing_is_checked_against_the_corpus() -> None:
+    """The guard that replaced one which compared PROSE TO PROSE and therefore could not fail.
+
+    The old version asserted that `loss_decided_by` starting with "nothing" agreed with the
+    wording of `keeps`. Both are strings in the same file written by the same person in the same
+    minute, so they agreed, and the entry they were guarding was false: it offered
+    `ORDER BY (series, period, vintage)` as the design that loses nothing, and a date-only key
+    destroys 71 of the 23,943 rows in the committed corpus.
+
+    What is checked now is the corpus. An entry claiming to lose nothing must name a measurement
+    showing the whole corpus survived it.
+    """
+    corpus = measurement("whole_corpus.rows")
     for store in STORES:
-        loses_nothing = store.loss_decided_by.startswith("nothing")
-        assert loses_nothing == ("never" in store.keeps or "every version" in store.keeps), (
-            f"{store.name} says loss is decided by {store.loss_decided_by!r} and that it keeps "
-            f"{store.keeps!r}, and those two do not agree"
+        if store.loses_history:
+            continue
+        survived = [
+            measurement(key) for key in store.evidence if key.startswith("whole_corpus.kept")
+        ]
+        assert survived, (
+            f"{store.name} claims to lose nothing and names no whole-corpus measurement, so the "
+            f"claim rests on a two-row fixture. That is exactly how the previous version of this "
+            f"table came to recommend a design that destroys 71 published values"
         )
+        assert all(kept == corpus for kept in survived), (
+            f"{store.name} claims to lose nothing and its own measurement says {survived} rows "
+            f"survived out of {corpus}"
+        )
+
+
+def test_an_entry_claiming_to_lose_history_can_show_the_loss() -> None:
+    """The other direction, and a mutation walked straight through its absence.
+
+    Marking the honest design as losing history passed every test here, because the guard only
+    read entries claiming to lose NOTHING. Understating a design's safety is a smaller sin than
+    overstating it and it is still a false claim, and a table where half the rows are unchecked
+    is a table that will drift on the unchecked half.
+
+    So an entry claiming loss must name a measurement that SHOWS one: either a row count that
+    fell, or a corpus figure short of the whole.
+    """
+    corpus = measurement("whole_corpus.rows")
+    for store in STORES:
+        if not store.loses_history:
+            continue
+        shows_loss = False
+        for key in store.evidence:
+            value = measurement(key)
+            if key.startswith("whole_corpus.destroyed") and value > 0:
+                shows_loss = True
+            if key.startswith("whole_corpus.kept") and value < corpus:
+                shows_loss = True
+            if key.endswith("rows_after_optimize") and value < measurement(
+                key.replace("rows_after_optimize", "rows_before_merge")
+            ):
+                shows_loss = True
+            if key.endswith("one_insert.rows") and value < 2:
+                shows_loss = True
+        assert shows_loss, (
+            f"{store.name} claims to lose history and none of its measurements "
+            f"{store.evidence} shows a loss, so the claim is unchecked in the direction nobody "
+            f"thinks to check"
+        )
+
+
+def test_the_design_this_repository_used_to_recommend_is_kept_as_an_exhibit() -> None:
+    """The wrong answer stays beside the right one, and its cost is a number.
+
+    Deleting it would leave a reader unable to tell that the obvious refinement of the obvious
+    design is still wrong, which is the more useful half of the finding.
+    """
+    by_date = next(store for store in STORES if "where vintage is a DATE" in store.name)
+    assert measurement("vintage_as_a_date.rows_after_optimize") == 1, (
+        "two versions released on the same day now survive a date-only key, so this exhibit no "
+        "longer holds"
+    )
+    destroyed = measurement("whole_corpus.destroyed_by_a_date_key")
+    assert destroyed > 0
+    assert str(destroyed) in by_date.measured, (
+        f"the entry does not quote the number of values it destroys, {destroyed}, so a reader "
+        f"has to take the severity on trust"
+    )
 
 
 def test_the_three_clocks_are_named_and_each_says_what_it_is_confused_with() -> None:

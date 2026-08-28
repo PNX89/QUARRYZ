@@ -19,6 +19,14 @@ WHAT EACH STORE COSTS, MEASURED. The entries below are checked against
 does not make is a red build rather than a paragraph. The first entry is the one worth reading:
 it is what a competent person reaches for, and it deletes the history.
 
+AND THE THIRD ENTRY IS THE ONE I GOT WRONG, which is worth reading second. This file used to
+offer `ORDER BY (series, period, vintage)` as the cure and say it lost nothing. It loses 71
+published values out of 23,943 in the committed corpus, because a vintage stored as a DATE is
+not a unique key and this repository says so in four other places, including nine lines above
+this paragraph. The wrong design is kept here beside the right one rather than quietly replaced,
+because a repository arguing that an unstated boundary is a claim nobody made cannot silently
+correct its own.
+
 WHAT IS DELIBERATELY NOT HERE. Nothing about scale, concurrency, or how any of this behaves
 with more than one writer. One process loads a committed corpus of 23,943 rows, and a store that
 is right at that size may be wrong at a size this repository never runs.
@@ -77,6 +85,12 @@ class Store:
     keeps: str
     #: The question it cannot answer, stated as a question.
     cannot_answer: str
+    #: Whether it loses any published value at all. A BOOLEAN AND NOT A PHRASE, because the
+    #: field below was carrying both meanings and a guard reading it could not tell them apart:
+    #: "nothing at all" in `loss_decided_by` means no scheduler decides the moment, and the
+    #: batch-load entry that says it loses everything IMMEDIATELY starts with the same word as
+    #: the entry that loses nothing ever. Prose is not a predicate.
+    loses_history: bool
     #: What decides the moment history is lost. "Nothing" is a legitimate answer and the point
     #: of the field: for two of these it is not the data and not the query.
     loss_decided_by: str
@@ -90,6 +104,7 @@ class Store:
 STORES: tuple[Store, ...] = (
     Store(
         name="ReplacingMergeTree keyed on (series, period)",
+        loses_history=True,
         keeps="the latest value for each observation, and nothing else",
         cannot_answer="what did the publisher say about this period before the revision",
         loss_decided_by="merge scheduling, and how much unrelated data has arrived since. Not "
@@ -100,6 +115,7 @@ STORES: tuple[Store, ...] = (
     ),
     Store(
         name="ReplacingMergeTree keyed on (series, period), loaded in one batch",
+        loses_history=True,
         keeps="the latest value, and it never held anything else",
         cannot_answer="the same question, and here there was never a moment at which it could "
         "have been answered",
@@ -110,14 +126,38 @@ STORES: tuple[Store, ...] = (
         evidence=("one_insert.rows", "one_insert.active_parts"),
     ),
     Store(
-        name="ReplacingMergeTree keyed on (series, period, vintage)",
+        name="ReplacingMergeTree keyed on (series, period, vintage) where vintage is a DATE",
+        loses_history=True,
+        keeps="every version EXCEPT the ones a publisher released on the same day as another",
+        cannot_answer="what the first of two versions published on one day said, because it is "
+        "not there to be asked",
+        loss_decided_by="the publisher publishing twice in a day, which they do: 28 release "
+        "dates in this corpus carry two versions each",
+        measured="IKBJ period 2015 APR was published twice on 2016-01-08, as -2548 and -2584. "
+        "Loaded into this design both rows produce ONE row and the earlier value is gone. Across "
+        "the whole committed corpus a date-only key keeps 23,872 of 23,943 rows and destroys 71 "
+        "published values",
+        evidence=(
+            "vintage_as_a_date.rows_after_optimize",
+            "whole_corpus.kept_by_a_date_key",
+            "whole_corpus.destroyed_by_a_date_key",
+        ),
+    ),
+    Store(
+        name="ReplacingMergeTree keyed on (series, period, vintage, version)",
+        loses_history=False,
         keeps="every version of every observation, as distinct rows",
-        cannot_answer="which of two versions published on the same day came second, unless the "
-        "version label is in the key as well as the date",
+        cannot_answer="nothing this repository asks of it",
         loss_decided_by="nothing. The rows are distinct keys and there is nothing to collapse",
-        measured="the same two vintages survive an explicit OPTIMIZE, and argMax over them "
-        "answers 100.0 asked as at 2020 and 105.5 asked as at 2021",
-        evidence=("vintage_in_key.rows", "vintage_in_key.as_of_2020", "vintage_in_key.as_of_2021"),
+        measured="the same two same-day versions both survive an explicit OPTIMIZE, and argMax "
+        "over the PAIR answers -2548 at v3 and -2584 at v4. The whole corpus goes in and comes "
+        "out at 23,943 rows",
+        evidence=(
+            "vintage_and_version.rows",
+            "vintage_and_version.as_of_v3",
+            "vintage_and_version.as_of_v4",
+            "whole_corpus.kept_by_a_pair_key",
+        ),
     ),
 )
 
