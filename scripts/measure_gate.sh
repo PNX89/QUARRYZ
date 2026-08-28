@@ -80,7 +80,12 @@ kinds_between() {
   uv run --group engines python -c "
 import duckdb, json
 con = duckdb.connect('target/quarryz.duckdb', read_only=True)
-print(json.dumps(dict(con.execute('select kind, count(*) from revisions group by kind').fetchall())))
+# ORDER BY kind, AND THE VERSION WITHOUT IT MADE THIS FILE FLAKY. A bare group by returns its
+# rows in whatever order the engine finds convenient, so two runs over identical data wrote the
+# same two counts into summary.json in different orders. Nothing about the measurement changed
+# and the JSON did, which means the CI step that diffs this file would have failed on some runs
+# and passed on others: the worst kind of check, because the first response to it is to delete it.
+print(json.dumps(dict(con.execute('select kind, count(*) from revisions group by kind order by kind').fetchall())))
 "
 }
 
@@ -131,12 +136,23 @@ with open(sys.argv[1], "w", encoding="utf-8") as handle:
     handle.write("\n")
 PYTHON
 
+# THE TWO THINGS IN dbt's OUTPUT THAT CHANGE WHEN NOTHING CHANGES: the wall clock it stamps on
+# every line, and the elapsed time in a test result. Both are removed here, and this is what
+# makes the transcript something CI can `git diff --exit-code` rather than a file that is
+# regenerated, differs, and is therefore never checked. Everything that carries meaning survives:
+# the FAIL, the test name, the result count, the PASS= tally.
+stabilise() {
+  sed -E -e 's/\x1b\[[0-9;]*m//g' \
+         -e 's/^[0-9]{2}:[0-9]{2}:[0-9]{2}  //' \
+         -e 's/in [0-9]+\.[0-9]+s\]/in <elapsed>]/'
+}
+
 {
   echo "\$ dbt build   # with the ledger emptied"
-  printf '%s\n' "$FAILED_OUTPUT" | grep -E "FAIL|ERROR|Got [0-9]+ results|Done\." | sed 's/\x1b\[[0-9;]*m//g'
+  printf '%s\n' "$FAILED_OUTPUT" | grep -E "FAIL|ERROR|Got [0-9]+ results|Done\." | stabilise
   echo
   echo "\$ dbt build   # with the committed ledger"
-  printf '%s\n' "$PASSED_OUTPUT" | grep -E "PASS=|Completed successfully" | sed 's/\x1b\[[0-9;]*m//g'
+  printf '%s\n' "$PASSED_OUTPUT" | grep -E "PASS=|Completed successfully" | stabilise
   echo
   echo "The seven releases the ledger declares, and what each moved:"
   tail -n +2 "$LEDGER" | cut -d, -f1-3 | sed 's/^/  /'
