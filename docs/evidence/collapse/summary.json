@@ -1,0 +1,19 @@
+{
+  "naive_key": {
+    "rows_before_merge": 2,
+    "rows_after_optimize": 1,
+    "rows_final_before": 1,
+    "rows_final_after": 1,
+    "surviving_vintage": "2021-02-12"
+  },
+  "one_insert": {
+    "rows": 1,
+    "active_parts": 1
+  },
+  "vintage_in_key": {
+    "rows": 2,
+    "rows_final": 2,
+    "as_of_2020": 100,
+    "as_of_2021": 105.5
+  }
+}

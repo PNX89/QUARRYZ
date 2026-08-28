@@ -1,0 +1,7 @@
+$ clickhouse local, the same table, both vintages in a single INSERT
+
+SELECT count() FROM one_insert                     -> 1
+SELECT count() FROM system.parts WHERE active      -> 1
+
+One part, and no merge has run. The earlier vintage was never written to disk, so
+there is no moment at which a check could have caught it and nothing to optimise away.
