@@ -1,12 +1,23 @@
-$ clickhouse local, ReplacingMergeTree ORDER BY (series, period, vintage)
-# the same two vintages, in one INSERT, and OPTIMIZE TABLE ... FINAL run deliberately
+$ clickhouse local, two versions the publisher released on the SAME DAY
+# IKBJ '2015 APR', both released 2016-01-08: v3 at -2548 and v4 at -2584.
+# Real rows from src/quarryz/data/vintages/IKBJ.csv, not a fixture.
 
-SELECT count() FROM bitemporal        -> 2
-SELECT count() FROM bitemporal FINAL  -> 2
+--- ORDER BY (series, period, vintage), which this repository called the cure ---
+SELECT count() FROM by_date            -> 1
+after OPTIMIZE TABLE by_date FINAL     -> 1
+the value still readable               -> -2584
 
---- the as-of projection, which is what the collapsing table was trying to give ---
-argMax(value, vintage) WHERE vintage <= 2020-12-31  -> 100
-argMax(value, vintage) WHERE vintage <= 2021-12-31  -> 105.5
+That is the SAME behaviour as the naive table above. A vintage stored as a DATE is not
+a unique key, this repository documents that fact in four other places, and the design
+offered as the fix repeated the defect.
 
-Two different answers to the same question asked at two moments, which is the thing
-the first table cannot do at all once it has collapsed.
+--- ORDER BY (series, period, vintage, version) ---
+SELECT count() FROM by_pair            -> 2
+argMax(value, (vintage, version)) at v3 -> -2548
+argMax(value, (vintage, version)) at v4 -> -2584
+
+--- and the whole committed corpus through both ---
+rows loaded                            -> 23943
+surviving a (series, period, released, version) key -> 23943
+surviving a (series, period, released) key          -> 23872
+published values a date-only key destroys           -> 71

@@ -10,10 +10,20 @@
     "rows": 1,
     "active_parts": 1
   },
-  "vintage_in_key": {
+  "vintage_as_a_date": {
+    "rows_before_merge": 1,
+    "rows_after_optimize": 1,
+    "surviving_value": "-2584"
+  },
+  "vintage_and_version": {
     "rows": 2,
-    "rows_final": 2,
-    "as_of_2020": 100,
-    "as_of_2021": 105.5
+    "as_of_v3": "-2548",
+    "as_of_v4": "-2584"
+  },
+  "whole_corpus": {
+    "rows": 23943,
+    "kept_by_a_pair_key": 23943,
+    "kept_by_a_date_key": 23872,
+    "destroyed_by_a_date_key": 71
   }
 }
