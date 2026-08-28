@@ -84,3 +84,36 @@ jobs:
         run: scripts/measure_gate.sh
       - name: fail if any measured outcome has changed
         run: git diff --exit-code -- docs/evidence/gate/summary.json
+
+  # One as-of question asked of three engines in three idioms. Needs a ClickHouse binary, DuckDB
+  # and a real PostgreSQL, so it is its own job with its own service.
+  agreement:
+    name: three engines, one question, and the tie that decides it
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: quarryz
+          POSTGRES_PASSWORD: quarryz-demo
+          POSTGRES_DB: quarryz
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U quarryz -d quarryz"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      QUARRYZ_POSTGRES: postgresql://quarryz:quarryz-demo@127.0.0.1:5433/quarryz
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - name: fetch the engine, verified against the vendor's own sha512 on this platform
+        run: scripts/fetch_tools.sh
+      - name: ask all three at both moments
+        run: uv run --group engines python scripts/measure_agreement.py
+      - name: fail if any measured outcome has changed
+        run: git diff --exit-code -- docs/evidence/agreement/summary.json
