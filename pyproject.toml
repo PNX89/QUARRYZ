@@ -17,6 +17,13 @@ dev = [
     "pyyaml>=6.0.3",
     "types-pyyaml>=6.0.12.20260815",
 ]
+engines = [
+    "boto3>=1.43",
+    "duckdb>=1.5",
+    "moto[server]>=5.2",
+    "pyiceberg[pyarrow,sql-sqlite]>=0.11",
+    "pytz>=2025.2",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/quarryz"]
@@ -49,3 +56,11 @@ filterwarnings = ["error"]
 files = ["src", "tests", "scripts"]
 mypy_path = ["scripts"]
 strict = true
+
+[[tool.mypy.overrides]]
+# boto3 and pyarrow ship no py.typed marker and no bundled stubs at the versions used here.
+# Declared untyped for those two modules rather than excluding the file, so everything else in
+# scripts/measure_snapshots.py is still checked. The alternative, boto3-stubs, is a large
+# dependency for two calls, and pyiceberg itself is typed and needs nothing.
+module = ["boto3", "pyarrow"]
+ignore_missing_imports = true

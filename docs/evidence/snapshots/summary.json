@@ -1,0 +1,24 @@
+{
+  "loads": 3,
+  "snapshots": 5,
+  "operations": [
+    "append",
+    "delete",
+    "append",
+    "delete",
+    "append"
+  ],
+  "objects_in_s3": 17,
+  "rows_june": 664,
+  "rows_december": 672,
+  "period": "2021",
+  "by_snapshot": {
+    "load_1_june": "-28039",
+    "load_2_same_data_again": "-28039",
+    "load_3_december": "-3518"
+  },
+  "by_vintage": {
+    "as_at_2023_06": "-28039",
+    "as_at_2023_12": "-3518"
+  }
+}
