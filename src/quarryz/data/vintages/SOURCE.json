@@ -1,0 +1,116 @@
+{
+  "publisher": "Office for National Statistics",
+  "licence": "Open Government Licence v3.0",
+  "attribution": "Contains public sector information licensed under the Open Government Licence v3.0.",
+  "licence_url": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+  "permits_adaptation": "The OGL v3.0 \"You are free to\" list includes \"adapt the Information\", which is what this repository does to it.",
+  "api_note": "The api.ons.gov.uk form was retired on 25/11/2024. The live form carries the topic path and is the one recorded in each url below.",
+  "captured": "2026-08-29",
+  "series": [
+    {
+      "cdid": "DZLS",
+      "title": "Public sector net borrowing excluding public sector banks, GBP million",
+      "why": "Annual 2020 has seventeen distinct value states across its publication history, which is the clearest case in the set of a number nobody should quote without a date.",
+      "url": "https://www.ons.gov.uk/economy/governmentpublicsectorandtaxes/publicsectorfinance/timeseries/dzls/pusf/data",
+      "versions": 131,
+      "changes": 13926,
+      "distinct_release_dates": 125,
+      "release_dates_shared_by_two_versions": [
+        "2016-05-24",
+        "2019-10-21",
+        "2020-02-21",
+        "2020-11-20",
+        "2021-09-20",
+        "2024-10-21"
+      ],
+      "distinct_titles_over_time": [
+        "Public sector net borrowing, excluding public sector banks (\u00a3 million)",
+        "Public sector net borrowing, excluding public sector banks (\u00a3 million)  "
+      ],
+      "withdrawn_rows": 72,
+      "first_release": "2016-04-01",
+      "last_release": "2026-08-20"
+    },
+    {
+      "cdid": "IKBJ",
+      "title": "Total trade balance, current prices, seasonally adjusted, GBP million",
+      "why": "The largest single revision found anywhere in these four: annual 2021 moved from -28,039 to -3,518 between the versions published 2023-09-12 and 2023-10-11. It also carries the withdrawal case, April 1997, and 12 correction notices.",
+      "url": "https://www.ons.gov.uk/economy/nationalaccounts/balanceofpayments/timeseries/ikbj/mret/data",
+      "versions": 146,
+      "changes": 6963,
+      "distinct_release_dates": 129,
+      "release_dates_shared_by_two_versions": [
+        "2016-01-08",
+        "2017-10-09",
+        "2018-05-09",
+        "2018-07-09",
+        "2018-09-09",
+        "2018-11-09",
+        "2019-02-11",
+        "2019-07-09",
+        "2020-01-13",
+        "2020-10-08",
+        "2021-02-12",
+        "2022-04-10",
+        "2022-06-12",
+        "2023-06-13",
+        "2026-07-15"
+      ],
+      "distinct_titles_over_time": [
+        "Balance of Payments: Trade in Goods & Services: Total balance: CP SA \u00a3m",
+        "Balance of Payments: Trade in Goods & Services: Total balance: CP SA \u00a3m ",
+        "Total Trade (TT): WW: Balance: BOP: CP: SA"
+      ],
+      "withdrawn_rows": 234,
+      "first_release": "2015-11-06",
+      "last_release": "2026-08-12"
+    },
+    {
+      "cdid": "KAC3",
+      "title": "Average weekly earnings, year on year three month average growth, per cent",
+      "why": "A rate rather than a level, so a revision cannot be explained away as a rescaling. March 2010 has read 4.3, 2.9, 4.9 and 5.0 at different times.",
+      "url": "https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/earningsandworkinghours/timeseries/kac3/lms/data",
+      "versions": 131,
+      "changes": 1179,
+      "distinct_release_dates": 127,
+      "release_dates_shared_by_two_versions": [
+        "2015-12-16",
+        "2016-03-16",
+        "2023-09-11",
+        "2023-11-14"
+      ],
+      "distinct_titles_over_time": [
+        "AWE: Whole Economy Year on Year Three Month Average Growth (%): Seasonally Adjusted Total Pay Excluding Arrears",
+        "Average weekly earnings growth rate (total pay)\n      ",
+        "LMSB SA AWE total pay WE growth yr on yr 3 months average",
+        "LMSB SA AWE total pay WE growth yr on yr 3 months average               "
+      ],
+      "withdrawn_rows": 0,
+      "first_release": "2015-10-13",
+      "last_release": "2026-08-17"
+    },
+    {
+      "cdid": "MGRZ",
+      "title": "People in employment, aged 16 and over, seasonally adjusted, thousands",
+      "why": "The mildest of the four, revised in 249 of 941 periods, which is the control: a warehouse that only ever sees heavy revisers is not being asked a hard question.",
+      "url": "https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/timeseries/mgrz/lms/data",
+      "versions": 127,
+      "changes": 1875,
+      "distinct_release_dates": 124,
+      "release_dates_shared_by_two_versions": [
+        "2015-12-16",
+        "2016-03-16",
+        "2020-10-12"
+      ],
+      "distinct_titles_over_time": [
+        "Employment",
+        "LFS: In employment: UK: All: Aged 16+: 000s:SA: Annual = 4 quarter average",
+        "Number of People in Employment (aged 16 and over, seasonally adjusted)",
+        "Number of People in Employment (aged 16 and over, seasonally adjusted):000s"
+      ],
+      "withdrawn_rows": 0,
+      "first_release": "2015-10-13",
+      "last_release": "2026-08-17"
+    }
+  ]
+}
