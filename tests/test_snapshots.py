@@ -50,17 +50,37 @@ def test_loading_the_same_data_again_makes_a_snapshot_and_no_new_version() -> No
     )
 
 
-def test_an_overwrite_is_two_snapshots_and_not_one() -> None:
-    """A retention rule counting one snapshot per logical write is already wrong.
+def test_what_a_write_costs_in_snapshots_depends_on_its_shape() -> None:
+    """A CORRECTION. This asserted "an overwrite is two snapshots, a delete and an append".
 
-    Three loads produce five snapshots here: one append, then a delete and an append for each
-    overwrite. Anybody expiring "the last N snapshots" is expiring half as many writes as they
-    think.
+    That is true of a FULL overwrite of a non-empty table and of nothing else, and it was
+    generalised from the single case this exhibit happens to perform. Measured on the same
+    pyiceberg against the same table, three shapes of write give three different answers:
+
+        overwrite of an empty table   append
+        overwrite with a filter       append, overwrite, append
+        full overwrite, twice         append, delete, append, delete, append
+
+    The filtered form is what an incremental loader actually writes, and it produces no delete
+    at all, so a retention rule keyed on counting deletes would have been wrong about the
+    commonest case. The useful claim survives and is smaller: a snapshot is not a logical write,
+    and how many you get is a property of the call rather than of the load.
     """
-    operations = summary()["operations"]
-    assert operations.count("append") == 3, operations
-    assert operations.count("delete") == 2, operations
-    assert len(operations) == summary()["snapshots"]
+    variants = summary()["overwrite_variants"]
+    assert variants["overwrite_of_an_empty_table"] == ["append"]
+    assert variants["overwrite_with_a_filter"] == ["append", "overwrite", "append"]
+    assert variants["full_overwrite_twice"] == [
+        "append",
+        "delete",
+        "append",
+        "delete",
+        "append",
+    ]
+    assert len({tuple(shape) for shape in variants.values()}) == 3, (
+        "two shapes of write now produce the same snapshot sequence, so the claim that the cost "
+        "depends on the shape is no longer supported by these measurements"
+    )
+    assert len(summary()["operations"]) == summary()["snapshots"]
 
 
 def test_the_table_and_the_publisher_agree_when_asked_the_same_question() -> None:

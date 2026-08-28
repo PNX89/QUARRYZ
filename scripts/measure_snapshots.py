@@ -81,6 +81,8 @@ def main() -> int:
     import boto3
     import pyarrow as pa
     from pyiceberg.catalog.sql import SqlCatalog
+    from pyiceberg.expressions import EqualTo, Reference
+    from pyiceberg.expressions.literals import literal
 
     OUT.mkdir(parents=True, exist_ok=True)
     work = pathlib.Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "quarryz-snapshots"
@@ -178,6 +180,44 @@ def main() -> int:
             "load_3_december": value_at_snapshot(third.snapshot_id),
         }
 
+        # WHAT AN OVERWRITE COSTS IN SNAPSHOTS IS A pyiceberg BEHAVIOUR AND NOT A LAW, and this
+        # measures three shapes rather than generalising from one. The first version of this
+        # exhibit asserted "an overwrite is two snapshots, a delete and an append" from the one
+        # case above; a filtered overwrite, which is what an incremental loader actually writes,
+        # produces a single OVERWRITE operation and no delete at all.
+        variants: dict[str, list[str]] = {}
+
+        def operations_of(table: Any) -> list[str]:
+            return [
+                str(entry.summary.operation.value if entry.summary else "unknown")
+                for entry in table.snapshots()
+            ]
+
+        empty = catalog.create_table("ons.overwrite_empty", schema=schema)
+        empty.overwrite(pa.Table.from_pylist(june, schema=schema))
+        empty.refresh()
+        variants["overwrite_of_an_empty_table"] = operations_of(empty)
+
+        filtered = catalog.create_table("ons.overwrite_filtered", schema=schema)
+        filtered.append(pa.Table.from_pylist(june, schema=schema))
+        filtered.overwrite(
+            pa.Table.from_pylist(
+                [row for row in december if row["period"] == PERIOD], schema=schema
+            ),
+            # SPELLED WITH KEYWORDS ON PURPOSE. pyiceberg's own documentation writes this as
+            # EqualTo("period", PERIOD) and that call is correct at runtime: LiteralPredicate
+            # defines a real __init__ taking (term, literal) and coerces both. But EqualTo is
+            # also a pydantic model, and what a type checker sees is the signature synthesised
+            # from its FIELDS (type, term, value), under which the documented call has two
+            # positional arguments too many. Measured: all three spellings build an identical
+            # EqualTo(term=Reference('period'), literal=literal('2021')), and only this one
+            # passes mypy --strict. Silencing the checker instead would have hidden the reason.
+            overwrite_filter=EqualTo(term=Reference("period"), value=literal(PERIOD)),
+        )
+        filtered.refresh()
+        variants["overwrite_with_a_filter"] = operations_of(filtered)
+        variants["full_overwrite_twice"] = [entry["operation"] for entry in history]
+
         # THE OTHER DIRECTION, asked of the data rather than of the table's history.
         sys.path.insert(0, str(ROOT / "src"))
         from quarryz.stores import as_of
@@ -211,6 +251,7 @@ def main() -> int:
             "rows_june": len(june),
             "rows_december": len(december),
             "period": PERIOD,
+            "overwrite_variants": variants,
             "by_snapshot": by_snapshot,
             "by_vintage": by_vintage,
         }
@@ -278,8 +319,20 @@ def main() -> int:
             print("records a load. Only the vintage records a publication.", file=handle)
             print(file=handle)
             print(f"--- and it really was S3: {objects} objects in the bucket ---", file=handle)
-            for entry in sorted(listing.get("Contents", []), key=lambda item: str(item["Key"]))[:6]:
-                print(f"  {entry['Key']}", file=handle)
+            # THE KEYS THEMSELVES ARE NOT PRINTED, and printing them made this transcript
+            # unreproducible: pyiceberg names every data file with a fresh UUID, so each run
+            # dirtied the working tree and the committed file could never match a CI run. The
+            # shape is what a reader needs, and the shape is stable.
+            shapes: dict[str, int] = {}
+            for entry in listing.get("Contents", []):
+                suffix = str(entry["Key"]).rsplit(".", 1)[-1]
+                shapes[suffix] = shapes.get(suffix, 0) + 1
+            for suffix, count in sorted(shapes.items()):
+                print(f"  {count} .{suffix}", file=handle)
+            print(
+                "  (the file names carry a fresh UUID per run and are not recorded here)",
+                file=handle,
+            )
 
         print(json.dumps(summary, indent=2))
         return 0
