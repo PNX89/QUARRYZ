@@ -28,3 +28,21 @@ jobs:
       python-versions: '["3.11", "3.12", "3.13"]'
       sync-args: "--dev"
       run-mypy: true
+
+  # The engine measurements, re-run rather than trusted. docs/evidence/collapse was produced by
+  # the same script on a laptop, and a committed artefact nobody regenerates is a claim about
+  # the past. This fetches the same pinned ClickHouse and diffs the summary.
+  #
+  # SEPARATE FROM THE OFFLINE SUITE ON PURPOSE. It downloads 167 MB and the offline suite must
+  # stay the thing a stranger gets by cloning and running pytest with nothing installed.
+  collapse:
+    name: what the engine does to a vintage, measured again
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: fetch the engine, verified against the vendor's own sha512 on this platform
+        run: scripts/fetch_tools.sh
+      - name: measure it again
+        run: scripts/measure_collapse.sh
+      - name: fail if any measured outcome has changed
+        run: git diff --exit-code -- docs/evidence/collapse/summary.json

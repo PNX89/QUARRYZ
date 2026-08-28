@@ -14,6 +14,8 @@ dev = [
     "pytest>=8",
     "ruff>=0.6",
     "mypy>=1.11",
+    "pyyaml>=6.0.3",
+    "types-pyyaml>=6.0.12.20260815",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -40,5 +42,10 @@ filterwarnings = ["error"]
 # because naming a directory mypy cannot find is an error and not a no-op. In a sibling
 # repository they were left out entirely, so the two scripts CI depended on were the only Python
 # in the tree that nothing type checked.
-files = ["src", "tests"]
+# `scripts` joined this list on the day it got its first Python file, which is what the test in
+# tests/test_scaffold.py is for and it fired on exactly that commit. Naming a directory mypy
+# cannot find is an error rather than a no-op, so the list grows with the first file rather than
+# in advance.
+files = ["src", "tests", "scripts"]
+mypy_path = ["scripts"]
 strict = true
