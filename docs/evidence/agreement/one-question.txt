@@ -1,0 +1,22 @@
+$ python scripts/measure_agreement.py   # IKBJ
+
+Three idioms for one definition:
+  clickhouse  argMax(value, (released, version))
+  duckdb      row_number() over (order by released desc, version desc)
+  postgres    distinct on (period) ... order by released desc, version desc
+
+--- as at 2023-08 ---
+667 periods compared, 0 disagreements
+2021 reads -28039 in all three
+0 periods where the release-date tie decided the answer
+
+--- as at 2016-01 ---
+306 periods compared, 0 disagreements
+2021 reads absent in all three
+14 periods where the release-date tie decided the answer
+
+THE TIE IS THE POINT. This series has release dates carrying two versions with
+different values. argMax(value, released) has no defined answer there, and at
+2016-01 it returns the superseded one for 14 periods. At 2023-08 it
+returns the right answer for all of them, because later releases have
+superseded every tied period: a query that is wrong is right almost always.
