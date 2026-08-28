@@ -17,9 +17,7 @@ Load 2 moved the table's clock and moved no publisher's clock. A snapshot
 records a load. Only the vintage records a publication.
 
 --- and it really was S3: 17 objects in the bucket ---
-  warehouse/ons/trade_balance/data/00000-0-0e03255a-43be-4b62-9eb1-967bb5e59b15.parquet
-  warehouse/ons/trade_balance/data/00000-0-3466202b-7d2f-4ede-af3d-9bec0a19c4b5.parquet
-  warehouse/ons/trade_balance/data/00000-0-ec85aae7-ecae-4c31-9f5a-7373c28f06cd.parquet
-  warehouse/ons/trade_balance/metadata/00000-938685bf-2160-4f71-8a63-72e821ad740a.metadata.json
-  warehouse/ons/trade_balance/metadata/00001-d0ae1d8a-0b6a-457e-b8a3-bf8926945266.metadata.json
-  warehouse/ons/trade_balance/metadata/00002-7ac236e7-3a3c-456c-939a-4eff4f8c0dda.metadata.json
+  10 .avro
+  4 .json
+  3 .parquet
+  (the file names carry a fresh UUID per run and are not recorded here)

@@ -1,12 +1,12 @@
 $ dbt build   # with the ledger emptied
-22:46:17  7 of 7 FAIL 7 assert_every_revision_was_declared ............................... [FAIL 7 in 0.00s]
-22:46:17  [ERROR]: in test assert_every_revision_was_declared (tests/assert_every_revision_was_declared.sql)
-22:46:17    Got 7 results, configured to fail if != 0
-22:46:17  Done. PASS=6 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=7
+6 of 6 FAIL 7 assert_every_revision_was_declared ............................... [FAIL 7 in <elapsed>]
+[ERROR]: in test assert_every_revision_was_declared (tests/assert_every_revision_was_declared.sql)
+  Got 7 results, configured to fail if != 0
+Done. PASS=5 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=6
 
 $ dbt build   # with the committed ledger
-22:46:19  Completed successfully
-22:46:19  Done. PASS=7 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=7
+Completed successfully
+Done. PASS=6 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=6
 
 The seven releases the ledger declares, and what each moved:
   DZLS,2023-09-20,380
