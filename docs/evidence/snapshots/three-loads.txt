@@ -1,0 +1,25 @@
+$ python scripts/measure_snapshots.py   # IKBJ, period 2021
+
+--- three loads, and what the TABLE held after each ---
+load 1, the corpus as at 2023-06          -28039
+load 2, THE SAME DATA AGAIN               -28039
+load 3, the corpus as at 2023-12          -3518
+
+5 snapshots for 3 loads: append, delete, append, delete, append
+An overwrite is two snapshots, a DELETE and an APPEND, so a retention rule
+counting one snapshot per logical write is already wrong.
+
+--- the same question asked of the DATA rather than of the table ---
+what had the publisher said as at 2023-06   -28039
+what had the publisher said as at 2023-12   -3518
+
+Load 2 moved the table's clock and moved no publisher's clock. A snapshot
+records a load. Only the vintage records a publication.
+
+--- and it really was S3: 17 objects in the bucket ---
+  warehouse/ons/trade_balance/data/00000-0-0e03255a-43be-4b62-9eb1-967bb5e59b15.parquet
+  warehouse/ons/trade_balance/data/00000-0-3466202b-7d2f-4ede-af3d-9bec0a19c4b5.parquet
+  warehouse/ons/trade_balance/data/00000-0-ec85aae7-ecae-4c31-9f5a-7373c28f06cd.parquet
+  warehouse/ons/trade_balance/metadata/00000-938685bf-2160-4f71-8a63-72e821ad740a.metadata.json
+  warehouse/ons/trade_balance/metadata/00001-d0ae1d8a-0b6a-457e-b8a3-bf8926945266.metadata.json
+  warehouse/ons/trade_balance/metadata/00002-7ac236e7-3a3c-456c-939a-4eff4f8c0dda.metadata.json

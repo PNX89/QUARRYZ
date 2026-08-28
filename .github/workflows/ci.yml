@@ -26,7 +26,14 @@ jobs:
     uses: PNX89/.github/.github/workflows/checks.yml@v1
     with:
       python-versions: '["3.11", "3.12", "3.13"]'
-      sync-args: "--dev"
+      # THE ENGINE GROUP IS SYNCED HERE AND THE OFFLINE SUITE STILL DOES NOT USE IT, which is
+      # not a contradiction: pytest and mypy need different things. Every test in the offline
+      # suite reads committed JSON and imports nothing from pyiceberg, moto or duckdb, so
+      # cloning this and running pytest with `--dev` alone still works, which is the claim.
+      # mypy is a different tool: it cannot check a file whose imports it cannot resolve, and
+      # leaving scripts/measure_snapshots.py unchecked, or declaring pyiceberg untyped when it
+      # ships a py.typed marker, would both be worse than one slower install.
+      sync-args: "--dev --group engines"
       run-mypy: true
 
   # The engine measurements, re-run rather than trusted. docs/evidence/collapse was produced by
@@ -46,3 +53,18 @@ jobs:
         run: scripts/measure_collapse.sh
       - name: fail if any measured outcome has changed
         run: git diff --exit-code -- docs/evidence/collapse/summary.json
+
+  # The Iceberg leg. Needs moto, pyiceberg and pyarrow, which the offline suite deliberately
+  # does not, so it is its own job and the boundary of the test rig stays legible.
+  snapshots:
+    name: a snapshot is not a vintage, measured against a real S3 endpoint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - name: load the same corpus twice and then the revised one
+        run: uv run --group engines python scripts/measure_snapshots.py
+      - name: fail if any measured outcome has changed
+        run: git diff --exit-code -- docs/evidence/snapshots/summary.json

@@ -108,3 +108,28 @@ def test_every_third_party_action_is_pinned_by_commit() -> None:
             continue
         assert re.search(r"@[0-9a-f]{40}$", ref), f"{ref} is pinned by a movable tag"
         assert trailing.strip().startswith("#"), f"{ref} is pinned with no version named beside it"
+
+
+def test_the_offline_suite_imports_nothing_from_the_engine_group() -> None:
+    """The claim that a stranger can clone this and run pytest with nothing installed.
+
+    The CI job that runs the offline suite ALSO installs the engine group, because mypy cannot
+    check a file whose imports it cannot resolve. That is a type-checking need and not a testing
+    one, and the distinction only holds if the tests genuinely do not touch those packages. So
+    it is asserted rather than trusted: every test here reads committed JSON and CSV.
+    """
+    engines = ("pyiceberg", "moto", "boto3", "duckdb", "pyarrow")
+    offenders: list[str] = []
+    for path in sorted((REPO / "tests").glob("test_*.py")):
+        text = path.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not (stripped.startswith("import ") or stripped.startswith("from ")):
+                continue
+            for package in engines:
+                if stripped.startswith((f"import {package}", f"from {package}")):
+                    offenders.append(f"{path.name}: {stripped}")
+    assert offenders == [], (
+        "the offline suite imports an engine package, so cloning this and running pytest with "
+        f"--dev alone no longer works: {offenders}"
+    )
