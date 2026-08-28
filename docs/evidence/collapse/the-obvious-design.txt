@@ -1,0 +1,13 @@
+$ clickhouse local, ReplacingMergeTree(vintage) ORDER BY (series, period)
+# two vintages of one observation, inserted separately
+
+--- before any merge ---
+SELECT count() FROM naive          -> 2
+SELECT count() FROM naive FINAL    -> 1
+
+--- after OPTIMIZE TABLE naive FINAL ---
+SELECT count() FROM naive          -> 1
+SELECT count() FROM naive FINAL    -> 1
+
+The same unchanged query returned 2 rows and then 1.
+The vintage still readable is 2021-02-12, and the other one is not readable by any query.
