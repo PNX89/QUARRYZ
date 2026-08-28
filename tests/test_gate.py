@@ -127,11 +127,24 @@ def test_all_three_kinds_of_change_are_exercised_by_a_real_window() -> None:
     assert older["restoration_window"].get("restored", 0) > 0
 
 
-def test_a_period_disappearing_is_a_separate_test_rather_than_an_assumption() -> None:
-    """It has never happened here, which is exactly why the silence must not be read as cover."""
-    tests = sorted((DBT / "tests").glob("*.sql"))
-    names = {path.stem for path in tests}
-    assert "assert_no_period_disappeared" in names, (
-        "nothing asserts that a period never vanishes between loads, which is a third event "
-        "that neither the revision model nor the new-period case would notice"
+def test_the_repository_does_not_claim_to_detect_a_disappearing_period() -> None:
+    """A withdrawn claim, kept as a check so it cannot creep back in.
+
+    There was a dbt test asserting no period ever vanishes between loads, and it could not fail:
+    the warehouse and the incoming load are the same table under two prefix bounds, so the
+    earlier one's key set is a subset by construction and the anti-join is provably empty. The
+    corpus cannot represent the event either, because the capture emits a row when a value
+    CHANGES and a dropped period emits nothing.
+
+    Both halves are now said in the model rather than asserted by a test that watches nothing.
+    """
+    names = {path.stem for path in (DBT / "tests").glob("*.sql")}
+    assert "assert_no_period_disappeared" not in names, (
+        "the disappearance test is back. It cannot fail while the warehouse and incoming models "
+        "are two prefix bounds on one table, so if it is wanted, the models have to change first"
+    )
+    model = (DBT / "models" / "revisions.sql").read_text(encoding="utf-8")
+    assert "DOES NOT CLAIM TO DETECT" in model, (
+        "the model no longer says that a disappearing period goes undetected, so a reader is "
+        "left to assume the gate covers a case it does not"
     )

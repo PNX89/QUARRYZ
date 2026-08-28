@@ -34,10 +34,19 @@ select
     declared.periods_expected,
     case
         when declared.series is null then 'no declaration for this release'
+        when declared.periods_expected is null
+            then 'declared with no count, which asserts nothing about what it moved'
         else 'declared ' || declared.periods_expected || ' periods and it moved ' || counted.periods
     end as why
 from counted
 left join declared
     on counted.series = declared.series
     and counted.revised_at = declared.released
-where declared.series is null or declared.periods_expected != counted.periods
+-- `is null` ON THE COUNT AS WELL, and its absence was a hole big enough to drive the whole
+-- gate through. With a blank cell the comparison `NULL != 445` evaluates to NULL rather than
+-- TRUE, so the row was dropped and the build went green while the declaration asserted nothing.
+-- Measured: a ledger declaring IKBJ 2023-10-11 with an empty count passed with PASS=7 while
+-- that release moved 445 periods. Three-valued logic turns a missing value into a silent yes.
+where declared.series is null
+   or declared.periods_expected is null
+   or declared.periods_expected != counted.periods
