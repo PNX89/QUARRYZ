@@ -1,0 +1,12 @@
+$ clickhouse local, ReplacingMergeTree ORDER BY (series, period, vintage)
+# the same two vintages, in one INSERT, and OPTIMIZE TABLE ... FINAL run deliberately
+
+SELECT count() FROM bitemporal        -> 2
+SELECT count() FROM bitemporal FINAL  -> 2
+
+--- the as-of projection, which is what the collapsing table was trying to give ---
+argMax(value, vintage) WHERE vintage <= 2020-12-31  -> 100
+argMax(value, vintage) WHERE vintage <= 2021-12-31  -> 105.5
+
+Two different answers to the same question asked at two moments, which is the thing
+the first table cannot do at all once it has collapsed.
