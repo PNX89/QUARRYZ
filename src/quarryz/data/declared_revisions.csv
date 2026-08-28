@@ -1,0 +1,8 @@
+series,released,periods_expected,note
+DZLS,2023-09-20,380,"Public sector finances annual revisions. 380 of 516 periods, which is the largest single rewrite in this window and the one worth a human reading the release note for."
+DZLS,2023-12-21,62,"A smaller follow-up in the same series three months later."
+IKBJ,2023-10-11,445,"The Blue Book consistency update. This is the release that moved annual 2021 from -28039 to -3518, the largest single revision anywhere in this corpus."
+KAC3,2023-08-14,1,"One period. Included because a gate that only fires on large rewrites teaches people that small ones do not count."
+KAC3,2023-09-11,167,"Annual weights update to average weekly earnings."
+KAC3,2023-11-14,1,"One period again."
+KAC3,2023-12-12,2,"Two periods."

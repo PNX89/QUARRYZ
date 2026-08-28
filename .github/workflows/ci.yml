@@ -68,3 +68,19 @@ jobs:
         run: uv run --group engines python scripts/measure_snapshots.py
       - name: fail if any measured outcome has changed
         run: git diff --exit-code -- docs/evidence/snapshots/summary.json
+
+  # The gate itself. Runs dbt twice, once with the ledger emptied so the failure is observed
+  # rather than asserted, and once with the committed ledger so the gate is known to be
+  # satisfiable. Its own job because it needs dbt and DuckDB, which the offline suite does not.
+  gate:
+    name: a publisher rewriting history fails this build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - name: build it with the ledger emptied and then with the ledger
+        run: scripts/measure_gate.sh
+      - name: fail if any measured outcome has changed
+        run: git diff --exit-code -- docs/evidence/gate/summary.json

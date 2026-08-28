@@ -1,0 +1,15 @@
+{
+  "undeclared_release_groups_when_ledger_emptied": 7,
+  "revisions_in_the_declared_window": 1058,
+  "releases_declared_in_the_ledger": 7,
+  "kinds_in_the_older_windows": {
+    "withdrawal_window": {
+      "changed": 845,
+      "withdrawn": 306
+    },
+    "restoration_window": {
+      "restored": 17,
+      "changed": 837
+    }
+  }
+}
