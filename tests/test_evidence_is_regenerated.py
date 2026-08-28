@@ -32,6 +32,33 @@ def workflow_text() -> str:
     return WORKFLOW.read_text(encoding="utf-8")
 
 
+def run_commands() -> str:
+    """Every line the workflow actually EXECUTES, with comments and step names left out.
+
+    THE WHOLE FILE WAS SEARCHED BEFORE THIS EXISTED, and a mutation proved what that was worth:
+    replacing `python scripts/measure_snapshots.py` with a script that does not exist left this
+    suite entirely green, because line 34 of the workflow mentions the same filename in a
+    comment explaining why mypy needs the engine group. The enforcement was satisfied by prose
+    ABOUT the harness while the step that ran it was gone.
+
+    That is the same defect twice in this repository, which is why it is now fixed at the
+    source rather than in one assertion: the workflow is parsed, and only `run:` bodies are
+    searched, minus their own comment lines.
+    """
+    jobs = workflow()["jobs"]
+    assert isinstance(jobs, dict)
+    executed: list[str] = []
+    for job in jobs.values():
+        assert isinstance(job, dict)
+        for step in job.get("steps", []):
+            command = step.get("run")
+            if not isinstance(command, str):
+                continue
+            executed += [line for line in command.splitlines() if not line.strip().startswith("#")]
+    assert executed, "the workflow runs no commands at all"
+    return "\n".join(executed)
+
+
 def evidence_directories() -> list[pathlib.Path]:
     if not EVIDENCE.exists():
         return []
@@ -74,14 +101,31 @@ def test_ci_runs_every_harness_and_diffs_what_it_wrote() -> None:
     outcome into a red build, and the two are separate lines in the workflow, so both are
     asserted for each evidence directory rather than either being taken as the other.
     """
-    text = workflow_text()
+    text = run_commands()
     for directory in evidence_directories():
         relative = f"docs/evidence/{directory.name}"
-        assert f"git diff --exit-code -- {relative}/summary.json" in text, (
-            f"CI does not diff {relative}/summary.json, so a changed outcome is not a red build"
+        # THE DIRECTORY AND NOT THE SUMMARY. This asserted summary.json alone, which left the
+        # transcripts, the files a human being actually reads, compared by nothing at all.
+        assert f"git diff --exit-code -- {relative}\n" in text, (
+            f"CI does not diff {relative}, so a changed outcome is not a red build"
+        )
+        # And a diff is silent about a file that is new, so the status check is asserted too.
+        assert f'test -z "$(git status --porcelain {relative})"' in text, (
+            f"CI diffs {relative} but never checks for a file the harness newly created, which "
+            f"a diff against the index does not see"
         )
 
-    for script in sorted((REPO / "scripts").glob("measure_*.sh")):
+    # BOTH SUFFIXES, and globbing only `.sh` meant two of the four harnesses were unenforced.
+    # measure_agreement.py and measure_snapshots.py are Python, so this loop never saw them: the
+    # workflow could drop the step that runs either one and every test here would still pass,
+    # while the diff step it left behind would exit 0 having compared a file nothing rewrote.
+    # That is the exact failure this file's docstring says it exists to catch.
+    harnesses = sorted(
+        list((REPO / "scripts").glob("measure_*.sh"))
+        + list((REPO / "scripts").glob("measure_*.py"))
+    )
+    assert len(harnesses) >= 4, f"only {len(harnesses)} harnesses found, which cannot be right"
+    for script in harnesses:
         assert f"scripts/{script.name}" in text, f"CI never runs scripts/{script.name}"
 
 
@@ -132,4 +176,30 @@ def test_the_offline_suite_imports_nothing_from_the_engine_group() -> None:
     assert offenders == [], (
         "the offline suite imports an engine package, so cloning this and running pytest with "
         f"--dev alone no longer works: {offenders}"
+    )
+
+
+def test_no_committed_transcript_carries_a_clock() -> None:
+    """The reason the transcripts went undiffed for so long, now a check rather than a habit.
+
+    dbt stamps `22:46:17` on every line it prints and reports each test as `[FAIL 7 in 0.00s]`.
+    Both change when nothing has changed, so a transcript carrying them cannot be compared
+    between runs, and the response to a file that cannot be compared is to stop comparing it.
+    `scripts/measure_gate.sh` strips both. This is what stops the next harness reintroducing one
+    and quietly forcing the same retreat.
+
+    A DATE IS NOT A CLOCK. These transcripts are full of dates, because a publication date is the
+    subject of this repository. What is banned is a wall time, an elapsed duration and a full
+    ISO instant: the three things that record when the measurement ran rather than what it found.
+    """
+    clocks = re.compile(r"\b\d{2}:\d{2}:\d{2}\b|\bin \d+\.\d+s\b|\d{4}-\d{2}-\d{2}T")
+    offenders: list[str] = []
+    for directory in evidence_directories():
+        for path in sorted(directory.glob("*.txt")):
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if clocks.search(line):
+                    offenders.append(f"{directory.name}/{path.name}:{number}: {line.strip()[:70]}")
+    assert offenders == [], (
+        "a committed transcript records when it was produced, so re-running the harness rewrites "
+        f"it and the CI diff becomes a coin toss: {offenders}"
     )

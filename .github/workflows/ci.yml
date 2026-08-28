@@ -51,8 +51,19 @@ jobs:
         run: scripts/fetch_tools.sh
       - name: measure it again
         run: scripts/measure_collapse.sh
-      - name: fail if any measured outcome has changed
-        run: git diff --exit-code -- docs/evidence/collapse/summary.json
+      - name: fail if any measured outcome or transcript has changed
+        run: |
+          # THE WHOLE DIRECTORY, AND IT USED TO BE summary.json ALONE. The transcripts are what a
+          # reader actually reads, and nothing compared them: a harness could have gone on writing
+          # a correct summary beside a transcript describing a build that no longer existed, and
+          # this step would have stayed green. The gate transcript had to be stabilised before
+          # this was possible, because dbt stamps a wall clock on every line it prints.
+          #
+          # `git status` as well as `git diff`, because a diff says nothing about a file the
+          # harness has newly created and nobody has committed.
+          git status --porcelain docs/evidence/collapse
+          git diff --exit-code -- docs/evidence/collapse
+          test -z "$(git status --porcelain docs/evidence/collapse)"
 
   # The Iceberg leg. Needs moto, pyiceberg and pyarrow, which the offline suite deliberately
   # does not, so it is its own job and the boundary of the test rig stays legible.
@@ -66,8 +77,11 @@ jobs:
           enable-cache: true
       - name: load the same corpus twice and then the revised one
         run: uv run --group engines python scripts/measure_snapshots.py
-      - name: fail if any measured outcome has changed
-        run: git diff --exit-code -- docs/evidence/snapshots/summary.json
+      - name: fail if any measured outcome or transcript has changed
+        run: |
+          git status --porcelain docs/evidence/snapshots
+          git diff --exit-code -- docs/evidence/snapshots
+          test -z "$(git status --porcelain docs/evidence/snapshots)"
 
   # The gate itself. Runs dbt twice, once with the ledger emptied so the failure is observed
   # rather than asserted, and once with the committed ledger so the gate is known to be
@@ -82,8 +96,11 @@ jobs:
           enable-cache: true
       - name: build it with the ledger emptied and then with the ledger
         run: scripts/measure_gate.sh
-      - name: fail if any measured outcome has changed
-        run: git diff --exit-code -- docs/evidence/gate/summary.json
+      - name: fail if any measured outcome or transcript has changed
+        run: |
+          git status --porcelain docs/evidence/gate
+          git diff --exit-code -- docs/evidence/gate
+          test -z "$(git status --porcelain docs/evidence/gate)"
 
   # One as-of question asked of three engines in three idioms. Needs a ClickHouse binary, DuckDB
   # and a real PostgreSQL, so it is its own job with its own service.
@@ -115,5 +132,8 @@ jobs:
         run: scripts/fetch_tools.sh
       - name: ask all three at both moments
         run: uv run --group engines python scripts/measure_agreement.py
-      - name: fail if any measured outcome has changed
-        run: git diff --exit-code -- docs/evidence/agreement/summary.json
+      - name: fail if any measured outcome or transcript has changed
+        run: |
+          git status --porcelain docs/evidence/agreement
+          git diff --exit-code -- docs/evidence/agreement
+          test -z "$(git status --porcelain docs/evidence/agreement)"
