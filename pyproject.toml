@@ -1,0 +1,44 @@
+[project]
+name = "quarryz"
+version = "0.1.0"
+description = "A bitemporal warehouse where a publisher rewriting history fails a build, proved against three engines that disagree about what history is"
+requires-python = ">=3.11"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quarryz"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# NO MARKERS YET, and none will be declared before a test carries one. A sibling repository
+# shipped three marker names of which two had no tests at all, deselected by default so nothing
+# ever noticed, and the test policing the list asserted the three names rather than that each
+# was used. Two names describing a rig that does not exist read as coverage.
+addopts = "-q"
+filterwarnings = ["error"]
+
+[tool.mypy]
+# scripts and examples join this list with their first Python file rather than in advance,
+# because naming a directory mypy cannot find is an error and not a no-op. In a sibling
+# repository they were left out entirely, so the two scripts CI depended on were the only Python
+# in the tree that nothing type checked.
+files = ["src", "tests"]
+strict = true

@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+.python-version
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Go
+controller/bin/
+*.test
+
+# envtest binaries, fetched by setup-envtest rather than committed. They are third-party
+# binaries and vendoring them would put kube-apiserver and etcd in an MIT tree.
+bin/
+envtest-bins/
+
+# Docker and build output
+.build/
+
+# macOS
+.DS_Store
+._*
+
+# Terraform's working directory, which is a CACHE and not source. 121.7 MiB of macOS-arm64
+# provider binaries were committed here by a harness run: measure_drift.sh calls `terraform init`
+# in the tree, and nothing ignored what it downloaded. The lock file next to it IS source and is
+# committed, because it is what pins the versions; the binaries it points at are fetched.
+#
+# The same argument as the envtest note above, and it was got right there and wrong here: a
+# binary a tool downloads is a binary a reader would rather download themselves than clone.
+terraform/**/.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+crash.log
+crash.*.log
+
+# The ClickHouse binary this repository downloads. 167 MB, fetched and checksummed by
+# scripts/fetch_tools.sh, and never committed: a sibling repository put 121.7 MiB of Terraform
+# provider binaries into its history exactly this way, by not writing this rule first.
+bin/
+*.tgz
+
+# DuckDB extensions, fetched on demand into the repository rather than into the home directory.
+duckdb_ext/
+
+# The moto S3 warehouse and any local Iceberg catalog.
+warehouse/
+catalog.db
