@@ -1,0 +1,10 @@
+# DuckDB in a file under target/, which is cleaned. No server, no credential, nothing to install
+# beyond the adapter, which is the reason dbt-duckdb is used here rather than dbt-clickhouse:
+# that one needs a running server AND holds dbt-core back to 1.11.14.
+quarryz:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      path: "target/quarryz.duckdb"
+      threads: 4

@@ -1,0 +1,22 @@
+$ dbt build   # with the ledger emptied
+22:46:17  7 of 7 FAIL 7 assert_every_revision_was_declared ............................... [FAIL 7 in 0.00s]
+22:46:17  [ERROR]: in test assert_every_revision_was_declared (tests/assert_every_revision_was_declared.sql)
+22:46:17    Got 7 results, configured to fail if != 0
+22:46:17  Done. PASS=6 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=7
+
+$ dbt build   # with the committed ledger
+22:46:19  Completed successfully
+22:46:19  Done. PASS=7 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=7
+
+The seven releases the ledger declares, and what each moved:
+  DZLS,2023-09-20,380
+  DZLS,2023-12-21,62
+  IKBJ,2023-10-11,445
+  KAC3,2023-08-14,1
+  KAC3,2023-09-11,167
+  KAC3,2023-11-14,1
+  KAC3,2023-12-12,2
+
+And MGRZ is in none of them. The same six months of publication revised 445 of IKBJ's
+664 periods and 0 of MGRZ's 887, so a gate that fires per load rather than per series
+would have blocked a clean series on another publisher's rewrite.
