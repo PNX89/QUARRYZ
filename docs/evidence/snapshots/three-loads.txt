@@ -16,8 +16,8 @@ what had the publisher said as at 2023-12   -3518
 Load 2 moved the table's clock and moved no publisher's clock. A snapshot
 records a load. Only the vintage records a publication.
 
---- and it really was S3: 17 objects in the bucket ---
-  10 .avro
-  4 .json
-  3 .parquet
+--- and it really was S3: 35 objects in the bucket ---
+  19 .avro
+  9 .json
+  7 .parquet
   (the file names carry a fresh UUID per run and are not recorded here)

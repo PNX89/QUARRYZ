@@ -8,10 +8,27 @@
     "delete",
     "append"
   ],
-  "objects_in_s3": 17,
+  "objects_in_s3": 35,
   "rows_june": 664,
   "rows_december": 672,
   "period": "2021",
+  "overwrite_variants": {
+    "overwrite_of_an_empty_table": [
+      "append"
+    ],
+    "overwrite_with_a_filter": [
+      "append",
+      "overwrite",
+      "append"
+    ],
+    "full_overwrite_twice": [
+      "append",
+      "delete",
+      "append",
+      "delete",
+      "append"
+    ]
+  },
   "by_snapshot": {
     "load_1_june": "-28039",
     "load_2_same_data_again": "-28039",

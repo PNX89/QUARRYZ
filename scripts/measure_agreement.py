@@ -132,9 +132,16 @@ def from_postgres(dsn: str, as_at: str) -> dict[str, str]:
                 value text not null,
                 released text not null,
                 version text not null,
-                -- THE KEY IS THE PAIR AND NOT THE DATE. 15 release dates in this series carry
-                -- two versions each, so a primary key on (period, released) would refuse rows
-                -- that are genuinely different states of the world.
+                -- THE KEY IS THE PAIR AND NOT THE DATE, and the number justifying that used
+                -- to be the wrong one. It said 15 release dates carry two versions each, which
+                -- is true of the publisher's version WALK and not of this table: 13 of those 15
+                -- second versions changed no value, so the CSV never sees them. What this table
+                -- would actually lose to a key on (period, released) is 17 rows, on two dates,
+                -- and all 17 carry a value different from the row they collide with.
+                --
+                -- A design argument standing on a number measured somewhere else is the same
+                -- mistake as an as-of answer read off a snapshot, in a comment instead of a
+                -- query. 17 is the figure, and tests/test_agreement.py recomputes it.
                 primary key (period, released, version)
             )
             """

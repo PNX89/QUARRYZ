@@ -79,11 +79,21 @@ def test_the_clickhouse_query_breaks_the_tie_rather_than_trusting_the_date() -> 
 
 def test_every_engine_orders_by_the_version_and_not_only_the_date() -> None:
     """All three idioms must use the same total order, or agreement is accidental."""
-    text = SCRIPT.read_text(encoding="utf-8")
-    assert text.count("released desc, version desc") >= 2, (
-        "at least one of the DuckDB and PostgreSQL queries orders by the date alone, so it can "
-        "return either of two versions published on the same day"
-    )
+    # WHITESPACE NORMALISED AND COUNTED PER QUERY, and the version that was not could not fail.
+    # It searched the whole file for a literal string and required two matches. The DuckDB query
+    # wraps that clause across two lines so it never contained the string at all, and the count
+    # of three came from the PostgreSQL query plus two lines of transcript prose. Deleting
+    # `version desc` from the DuckDB query left this test green while making DuckDB return the
+    # superseded value for the 14 periods this file exists to protect.
+    flat = " ".join(SCRIPT.read_text(encoding="utf-8").split())
+    for engine, marker in (
+        ("duckdb", "row_number() over (partition by period order by released desc, version desc)"),
+        ("postgres", "order by period, released desc, version desc"),
+    ):
+        assert marker in flat, (
+            f"the {engine} query does not order by the version as well as the date, so it can "
+            f"return either of two versions published on the same day"
+        )
 
 
 def test_a_period_the_publisher_had_not_reached_is_absent_rather_than_zero() -> None:
@@ -106,3 +116,46 @@ def test_the_transcript_says_why_the_wrong_query_looked_right() -> None:
     text = (EVIDENCE / "one-question.txt").read_text(encoding="utf-8")
     assert "a query that is wrong is right almost always" in text.lower()
     assert "argMax(value, (released, version))" in text
+
+
+def test_the_date_only_key_would_lose_a_measured_number_of_rows() -> None:
+    """The number the PostgreSQL key stands on, recomputed from the corpus it loads.
+
+    The comment beside that key used to quote 15, taken from the publisher's version walk, while
+    arguing about what this table would refuse. Thirteen of those fifteen second versions
+    changed no value, so the loaded CSV never contains them and the table would have lost
+    nothing on those dates. Measured here instead: 17 rows, across two dates, every one of them
+    carrying a value different from the row it collides with.
+    """
+    import csv
+    from collections import Counter
+
+    # The series is taken from the summary rather than hard-coded, so that pointing the harness
+    # at a different series makes this test measure the new one instead of quietly checking the
+    # old one's file.
+    series = summary()["series"]
+    path = REPO / "src" / "quarryz" / "data" / "vintages" / f"{series}.csv"
+    with path.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+
+    counted = Counter((row["period"], row["released"]) for row in rows)
+    colliding = {key for key, seen in counted.items() if seen > 1}
+    refused = sum(counted[key] - 1 for key in colliding)
+
+    values: dict[tuple[str, str], set[str]] = {}
+    for row in rows:
+        values.setdefault((row["period"], row["released"]), set()).add(row["value"])
+    differing = [key for key in colliding if len(values[key]) > 1]
+
+    assert refused == 17, (
+        f"a primary key on (period, released) would now refuse {refused} rows and the comment "
+        f"justifying the pair key says 17"
+    )
+    assert len(differing) == len(colliding), (
+        f"{len(colliding) - len(differing)} of the colliding rows carry the SAME value, so the "
+        f"key would be discarding a duplicate rather than a state of the world, which is a much "
+        f"weaker argument than the one being made"
+    )
+    assert len({key[1] for key in colliding}) == 2, (
+        "the collisions no longer fall on exactly two dates, which the comment states"
+    )
