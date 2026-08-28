@@ -78,7 +78,7 @@ verify_macos() {
 }
 
 fetch_linux() {
-  local target="$BIN/clickhouse" tarball="$BIN/clickhouse.tgz"
+  local target="$BIN/clickhouse"
   local name="clickhouse-common-static-${VERSION}-amd64.tgz"
   if [ -f "$target" ] && "$target" local --version 2>/dev/null | grep -q "$VERSION"; then
     say "ok    clickhouse ${VERSION} already present"
@@ -86,16 +86,21 @@ fetch_linux() {
   fi
   [ "${1:-}" = "--check" ] && die "bin/clickhouse is missing. Run without --check."
   say "==> downloading ${name} and its vendor sha512"
-  curl -fsSL --retry 3 -o "$tarball" "$BASE/$name"
-  curl -fsSL --retry 3 -o "$tarball.sha512" "$BASE/${name}.sha512"
-  # The vendor's file names the asset, so it is checked from the directory holding it.
-  ( cd "$BIN" && sed "s#  .*# $(basename "$tarball")#" "$(basename "$tarball").sha512" \
-      | shasum -a 512 -c - ) || die "the vendor sha512 does not match the download"
-  say "ok    vendor sha512 verified"
-  tar -xzf "$tarball" -C "$BIN" --strip-components=3 \
+  # DOWNLOADED UNDER THE VENDOR'S OWN FILENAME, so their checksum file can be used exactly as
+  # published. The first version of this saved the tarball as clickhouse.tgz and rewrote the
+  # filename inside the .sha512 with sed, which put ONE space where the format needs two and
+  # produced "no properly formatted SHA checksum lines found". Rewriting a vendor's checksum
+  # file to make it match your naming is a bad habit even when the sed is right: the file is
+  # the attestation, and editing it is editing the thing being trusted.
+  curl -fsSL --retry 3 -o "$BIN/$name" "$BASE/$name"
+  curl -fsSL --retry 3 -o "$BIN/${name}.sha512" "$BASE/${name}.sha512"
+  ( cd "$BIN" && shasum -a 512 -c "${name}.sha512" ) \
+    || die "the vendor sha512 does not match the download"
+  say "ok    vendor sha512 verified, unmodified, against the name they published it under"
+  tar -xzf "$BIN/$name" -C "$BIN" --strip-components=3 \
     "clickhouse-common-static-${VERSION}/usr/bin/clickhouse"
   chmod +x "$target"
-  rm -f "$tarball" "$tarball.sha512"
+  rm -f "$BIN/$name" "$BIN/${name}.sha512"
 }
 
 mkdir -p "$BIN"
