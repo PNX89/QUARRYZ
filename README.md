@@ -182,6 +182,41 @@ uv run ruff check .
 uv run mypy src tests scripts
 ```
 
+<!-- toolset:start -->
+
+Part of the Q...Z toolset, all of it designing for the failure that does not announce itself:
+
+- [QUACKZ](https://github.com/PNX89/QUACKZ), deflating a backtest that only looks good because
+  it was picked out of two hundred.
+- [QUOTEZ](https://github.com/PNX89/QUOTEZ), market data an agent can read and cannot act on.
+- [QUELLZ](https://github.com/PNX89/QUELLZ), measuring what prompt-injection containment costs
+  in utility as well as in attack rate.
+- [QUIDZ](https://github.com/PNX89/QUIDZ), refusing the outbound payment that would have gone
+  out twice.
+- [QUESTZ](https://github.com/PNX89/QUESTZ), stopping a scraper before it writes a CSV from a
+  page that changed shape.
+- [QUIZZ](https://github.com/PNX89/QUIZZ), answering what a statistic said at the time, and
+  refusing when it cannot.
+- [QUARANTINEZ](https://github.com/PNX89/QUARANTINEZ), treating an outcome the venue never
+  confirmed as terminal rather than as a retry.
+- [QUENCHZ](https://github.com/PNX89/QUENCHZ), deciding in the open what a tool server gets free
+  while it is still somebody's subprocess.
+- [QUILTZ](https://github.com/PNX89/QUILTZ), proving infrastructure code wrong without a cloud
+  account, and saying what that cannot show.
+- [QUAYZ](https://github.com/PNX89/QUAYZ), telling a crash loop from an OOMKill, and naming the
+  failure that no single field finds.
+- QUARRYZ, this one: keeping every version a statistical office published, and failing the build
+  when it quietly issues another.
+
+**On QUIZZ.** QUIZZ answers a question about a revisable number at a stated knowing-time, and it
+needs a store that can still produce the earlier answer. This is that store, and building it
+turned up the failure the sibling never sees: a release date looks like a total order and is not
+one, because a publisher can issue two versions on the same morning. Under a key that assumes
+otherwise the second silently replaces the first, and the as-of query goes on returning an
+answer for every question it is asked.
+
+<!-- toolset:end -->
+
 ## Licence
 
 MIT for the code. The statistics are Crown copyright, reproduced under the Open Government
