@@ -7,11 +7,15 @@
 ## Checklist
 
 - [ ] Every gate passes locally, not just the tests:
-      `uv sync --dev`
+      `uv sync --dev --group engines`
       `uv run ruff check .`
       `uv run ruff format --check .`
       `uv run mypy`
       `uv run pytest -q`
+      `uv run python examples/what_the_publisher_changed.py`
+      `uv run python scripts/capture_evidence.py`
+      `uv run --group engines python scripts/measure_snapshots.py`
+      `uv run --group engines python scripts/measure_agreement.py`
 - [ ] No number in the README was edited by hand. Anything generated was regenerated.
 - [ ] The prose still describes the code. No claim in the README has quietly stopped being true.
 - [ ] Public behaviour that changed is in `CHANGELOG.md` under the unreleased heading.
