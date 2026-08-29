@@ -59,6 +59,13 @@ def run_commands() -> str:
     return "\n".join(executed)
 
 
+def executed_diffs() -> str:
+    """Only the lines that compare something, which is where an exemption is decided."""
+    return "\n".join(
+        line for line in run_commands().splitlines() if "diff" in line or "status" in line
+    )
+
+
 def evidence_directories() -> list[pathlib.Path]:
     if not EVIDENCE.exists():
         return []
@@ -144,9 +151,17 @@ def test_every_third_party_action_is_pinned_by_commit() -> None:
     Written with the first workflow rather than after the fact: a sibling shipped twelve floating
     major tags under a generated file claiming every workflow pinned an exact version.
     """
+    # EVERY WORKFLOW FILE, AND IT USED TO BE ci.yml ALONE. pages.yml arrived pinned by commit
+    # and this test would not have noticed either way, which makes it a check on one file
+    # rather than on the repository. A second workflow is exactly where a floating tag gets in:
+    # it is written once, at publication, and never looked at again.
+    workflows = sorted((REPO / ".github" / "workflows").glob("*.yml"))
+    assert len(workflows) >= 1
+    text = "\n".join(path.read_text(encoding="utf-8") for path in workflows)
+
     first_party = "PNX89/"
-    uses = re.findall(r"^\s*(?:- )?uses:\s*(\S+)\s*(#.*)?$", workflow_text(), re.MULTILINE)
-    assert uses, "the workflow has no `uses:` lines at all"
+    uses = re.findall(r"^\s*(?:- )?uses:\s*(\S+)\s*(#.*)?$", text, re.MULTILINE)
+    assert uses, "the workflows have no `uses:` lines at all"
     for ref, trailing in uses:
         if ref.startswith(first_party):
             continue
@@ -217,12 +232,24 @@ def test_the_demo_output_is_captured_by_a_script_and_rerun_by_ci() -> None:
     assert captured.exists(), "there is no captured demo output for the card to show"
     assert captured.read_text(encoding="utf-8").strip(), "the captured demo output is empty"
 
-    script = REPO / "scripts" / "capture_demo.py"
+    script = REPO / "scripts" / "capture_evidence.py"
     assert script.exists()
     assert "demo.txt" in script.read_text(encoding="utf-8")
 
+    # THE ONE CAPTURED FILE CI DOES NOT DIFF, named here so the exemption is visible rather than
+    # inferred from its absence. facts.json carries a capture date, so a byte comparison would
+    # fail on the second morning and the job would be ignored within a week. Its numbers are
+    # held by tests/test_card.py instead, and that file is asserted to exist for that reason.
+    assert (REPO / "tests" / "test_card.py").exists(), (
+        "facts.json is exempt from the CI diff because it carries a date, and the tests that "
+        "check its contents another way are gone, so nothing checks it at all"
+    )
+    assert "facts.json" not in executed_diffs(), (
+        "facts.json is now diffed by CI, which will fail on the day after it was captured"
+    )
+
     executed = run_commands()
-    assert "uv run python scripts/capture_demo.py" in executed, "CI never re-runs the demo"
+    assert "uv run python scripts/capture_evidence.py" in executed, "CI never re-runs the demo"
     assert "git diff --exit-code -- docs/evidence/demo.txt" in executed, (
         "CI runs the demo and does not compare what it printed, which proves only that it does "
         "not crash"
