@@ -7,13 +7,12 @@ be useful is usually to disagree with something it claims.
 
 ```bash
 git clone https://github.com/PNX89/QUARRYZ.git && cd QUARRYZ
-uv sync --dev
-uv run pytest -q
+uv sync --all-extras --dev
+uv run python examples/what_the_publisher_changed.py
 ```
 
-This repository is still being built and has no demonstration command yet, so this section
-does not invent one. It is generated from the shared manifest and will name the demo on the
-day there is one to name.
+Under a minute from clone to output, offline, with nothing to configure and no key to supply.
+If that is not true on your machine, that is a bug and worth an issue on its own.
 
 ## The checks you can run here
 
@@ -21,11 +20,15 @@ These are read out of `.github/workflows/ci.yml` when this file is generated, so
 here is one CI does not run:
 
 ```bash
-uv sync --dev
+uv sync --dev --group engines
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy
 uv run pytest -q
+uv run python examples/what_the_publisher_changed.py
+uv run python scripts/capture_evidence.py
+uv run --group engines python scripts/measure_snapshots.py
+uv run --group engines python scripts/measure_agreement.py
 ```
 
 Run every one of them. Running only the test suite is the most common way to be surprised by a
@@ -34,8 +37,17 @@ red badge: formatting and typing are gates here, not suggestions.
 ## And the jobs that gate the pull request
 
 - lint, types and the offline suite
+- what the engine does to a vintage, measured again
+- the demo a reader can run with nothing installed
+- a snapshot is not a vintage, measured against a real S3 endpoint
+- a publisher rewriting history fails this build
+- three engines, one question, and the tie that decides it
 
-One job, and the commands above are what it runs.
+The list above is longer than the commands above it, and that is the point of naming it. A
+pull request is green when every one of those jobs is, and some of them need something this
+clone does not give you. Passing everything in the previous section is necessary and it is not
+sufficient, which is a sentence this file used to get wrong: it called the command list "the
+checks that gate every push" and left out every job that runs anything other than uv.
 
 ## Everything merges through a pull request
 
@@ -56,10 +68,15 @@ introduces it.
 
 ## Regenerating the evidence
 
-Numbers in the README, and the published card, are captured from a real run rather than
-typed. Neither exists here yet: the README is written last, from that captured output, so
-the page in this repository today is a placeholder and says so. It will be committed rather
-than left in a log. Actions logs are kept for 90 days and then the run and
+Some numbers in the README, and everything on the card at
+https://pnx89.github.io/QUARRYZ, come from a real run whose output is committed under
+`docs/evidence/`. If you change behaviour, regenerate rather than editing either by hand:
+
+```bash
+uv run python scripts/capture_evidence.py
+```
+
+The output is committed on purpose. Actions logs are kept for 90 days and then the run and
 everything it printed are gone, so a claim that lives only in a log outlives its own evidence.
 Nothing here runs on a schedule either: GitHub disables a scheduled workflow in a public
 repository after 60 days without activity, which is a month before that retention window closes,
@@ -70,8 +87,8 @@ so a safeguard on a timer would switch itself off just before it was needed.
 The pull request template carries the checklist. Two items on it are unusual and are the ones
 that matter most here:
 
-- **Does any number in the README still hold?** Numbers here are captured rather than typed,
-  so regenerate rather than edit by hand.
+- **Does any number in the README still hold?** Several are asserted by tests against a real
+  run. If you changed behaviour, regenerate rather than edit by hand.
 - **Does the prose still describe the code?** A claim that has quietly stopped being true is
   worse than no claim, and it is the specific failure this whole toolset is built around.
 
