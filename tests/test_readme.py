@@ -177,8 +177,17 @@ def test_the_page_does_not_claim_to_answer_the_question_a_sibling_answers() -> N
     repository. The phrases banned here are the ones that describe answering a user's question
     rather than storing and gating a publisher's revisions.
     """
+    # THE GENERATED FOOTER IS EXCLUDED, and it has to be. That block is written from the shared
+    # manifest and describes ten sibling repositories in their own words, one of which answers
+    # questions and refuses them. Banning the word there would be banning this repository from
+    # naming what its siblings do, which is a different rule and a worse one. The boundary is
+    # about this repository's own prose, so that is what is searched.
+    start, end = "<!-- toolset:start -->", "<!-- toolset:end -->"
+    assert start in README and end in README, "the generated footer markers are gone"
+    own_prose = README[: README.index(start)] + README[README.index(end) + len(end) :]
+
     forbidden = ("refuse", "refusal", "agent", "oracle", "asks the model", "answers the user")
-    found = [phrase for phrase in forbidden if phrase in README.lower()]
+    found = [phrase for phrase in forbidden if phrase in own_prose.lower()]
     assert found == [], (
         f"the README uses {found}, which is the language of the sibling that answers questions "
         f"rather than the one that stores revisions"
