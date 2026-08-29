@@ -203,3 +203,42 @@ def test_no_committed_transcript_carries_a_clock() -> None:
         "a committed transcript records when it was produced, so re-running the harness rewrites "
         f"it and the CI diff becomes a coin toss: {offenders}"
     )
+
+
+def test_the_demo_output_is_captured_by_a_script_and_rerun_by_ci() -> None:
+    """The one file under docs/evidence that is not in a directory of its own.
+
+    `demo.txt` is what the portfolio card prints, which makes it the most widely read output
+    this repository produces and the easiest to leave behind: it is a paste until something
+    regenerates it. The directory loop above cannot see it, so it is asserted separately rather
+    than left to look covered.
+    """
+    captured = EVIDENCE / "demo.txt"
+    assert captured.exists(), "there is no captured demo output for the card to show"
+    assert captured.read_text(encoding="utf-8").strip(), "the captured demo output is empty"
+
+    script = REPO / "scripts" / "capture_demo.py"
+    assert script.exists()
+    assert "demo.txt" in script.read_text(encoding="utf-8")
+
+    executed = run_commands()
+    assert "uv run python scripts/capture_demo.py" in executed, "CI never re-runs the demo"
+    assert "git diff --exit-code -- docs/evidence/demo.txt" in executed, (
+        "CI runs the demo and does not compare what it printed, which proves only that it does "
+        "not crash"
+    )
+
+
+def test_the_demo_needs_nothing_the_offline_suite_does_not() -> None:
+    """The claim the demo is FOR, and the one that would rot first.
+
+    Its whole purpose is being runnable by somebody who has just cloned this and installed
+    nothing. An import of duckdb or pyiceberg would break that silently, because the machine
+    writing the demo always has them.
+    """
+    text = (REPO / "examples" / "what_the_publisher_changed.py").read_text(encoding="utf-8")
+    for package in ("pyiceberg", "moto", "boto3", "duckdb", "pyarrow", "psycopg", "yaml"):
+        assert f"import {package}" not in text, (
+            f"the demo imports {package}, so it no longer runs on a clone with nothing installed"
+        )
+    assert "requests" not in text and "urllib" not in text, "the demo reaches the network"

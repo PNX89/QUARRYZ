@@ -1,0 +1,29 @@
+4 series, 535 versions walked, 517 of which changed at least one number, 23,943 recorded changes. Nothing here is fetched.
+
+Every value IKBJ has carried for 2021, and when it said so:
+
+  released    version          value
+  2022-02-11  v88             -28761
+  2022-04-10  v90             -29107
+  2022-10-11  v98             -17572
+  2023-01-13  v101            -28039
+  2023-10-11  v111             -3518
+  2024-10-10  v123             -5119
+  2025-10-15  v135               939
+
+  The largest single move is 24,521, on 2023-10-11. The period did not change. The publisher did.
+
+  as at 2023-06       -28039
+  as at 2023-12        -3518
+
+What one line of DDL decides, counted over all four series:
+
+  keyed on (series, period)                     keeps  2,533
+  keyed on (series, period, vintage as a Date)  keeps 23,872
+  keyed on (series, period, vintage, version)   keeps 23,943
+  The middle row is not a rounding difference. It is 71 published values, deleted with no error.
+
+Because a release date is not a key. One morning, one period, two published values:
+
+  2016-01-08  v3         -2548   (2015 APR, IKBJ)
+  2016-01-08  v4         -2584   (2015 APR, IKBJ)
