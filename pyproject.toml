@@ -55,7 +55,7 @@ filterwarnings = ["error"]
 # tests/test_scaffold.py is for and it fired on exactly that commit. Naming a directory mypy
 # cannot find is an error rather than a no-op, so the list grows with the first file rather than
 # in advance.
-files = ["src", "tests", "scripts"]
+files = ["src", "tests", "scripts", "examples"]
 mypy_path = ["scripts"]
 strict = true
 
