@@ -82,7 +82,7 @@ jobs:
       - name: run the demo exactly as the README tells a reader to
         run: uv run python examples/what_the_publisher_changed.py
       - name: run the demo and capture what it printed
-        run: uv run python scripts/capture_demo.py
+        run: uv run python scripts/capture_evidence.py
       - name: fail if the captured output has changed
         run: |
           git status --porcelain docs/evidence/demo.txt
