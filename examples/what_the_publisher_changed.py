@@ -17,6 +17,7 @@ import csv
 import json
 import pathlib
 from collections import defaultdict
+from itertools import pairwise
 
 VINTAGES = pathlib.Path(__file__).resolve().parents[1] / "src" / "quarryz" / "data" / "vintages"
 SERIES = "IKBJ"
@@ -67,7 +68,7 @@ def main() -> None:
     numeric = [row for row in history if row["value"] != WITHDRAWN]
     moves = [
         (abs(int(float(b["value"])) - int(float(a["value"]))), b["released"])
-        for a, b in zip(numeric, numeric[1:])
+        for a, b in pairwise(numeric)
     ]
     largest, when = max(moves)
     print(
