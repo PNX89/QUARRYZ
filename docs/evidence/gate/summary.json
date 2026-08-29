@@ -11,5 +11,23 @@
       "changed": 837,
       "restored": 17
     }
+  },
+  "per_series_in_the_declared_window": {
+    "DZLS": {
+      "periods": 516,
+      "revised": 442
+    },
+    "IKBJ": {
+      "periods": 664,
+      "revised": 445
+    },
+    "KAC3": {
+      "periods": 266,
+      "revised": 171
+    },
+    "MGRZ": {
+      "periods": 887,
+      "revised": 0
+    }
   }
 }

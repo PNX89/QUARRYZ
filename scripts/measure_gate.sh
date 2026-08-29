@@ -103,7 +103,20 @@ print(json.dumps({'withdrawal_window': json.loads(sys.argv[1]),
 # Rebuild on the declared window so the database left behind matches the committed ledger.
 dbt_build >/dev/null
 
-python3 - "$OUT/summary.json" "$UNDECLARED" "$REVISIONS" "$DECLARED" "$KINDS" <<'PYTHON'
+# THE PER-SERIES SPLIT, COMPUTED RATHER THAN TYPED. The closing sentence of the transcript
+# contrasts the series this window rewrote with the one it left alone, and it used to carry four
+# numbers written by hand into a heredoc. A recapture could have moved every one of them while
+# the sentence went on saying 445 and 887, which is the defect this repository is about, in its
+# own evidence file.
+PER_SERIES=$(uv run --group engines python -c "
+import duckdb, json
+con = duckdb.connect('target/quarryz.duckdb', read_only=True)
+periods = dict(con.execute('select series, count(distinct period) from warehouse group by series').fetchall())
+revised = dict(con.execute('select series, count(*) from revisions group by series').fetchall())
+print(json.dumps({s: {'periods': periods[s], 'revised': revised.get(s, 0)} for s in sorted(periods)}))
+")
+
+python3 - "$OUT/summary.json" "$UNDECLARED" "$REVISIONS" "$DECLARED" "$KINDS" "$PER_SERIES" <<'PYTHON'
 import json, sys
 
 summary = {
@@ -111,7 +124,21 @@ summary = {
     "revisions_in_the_declared_window": int(sys.argv[3]),
     "releases_declared_in_the_ledger": int(sys.argv[4]),
     "kinds_in_the_older_windows": json.loads(sys.argv[5]),
+    "per_series_in_the_declared_window": json.loads(sys.argv[6]),
 }
+
+per_series = summary["per_series_in_the_declared_window"]
+if not any(entry["revised"] == 0 for entry in per_series.values()):
+    print("every series was revised in this window, so the contrast the transcript draws "
+          "between a rewritten series and an untouched one has no example in it",
+          file=sys.stderr)
+    raise SystemExit(1)
+if sum(entry["revised"] for entry in per_series.values()) != summary[
+    "revisions_in_the_declared_window"
+]:
+    print("the per-series revision counts do not add up to the total, so one of the two is "
+          "counting something else", file=sys.stderr)
+    raise SystemExit(1)
 
 if summary["undeclared_release_groups_when_ledger_emptied"] == 0:
     print("emptying the ledger produced no undeclared revisions, so the gate is not gating",
@@ -157,9 +184,15 @@ stabilise() {
   echo "The seven releases the ledger declares, and what each moved:"
   tail -n +2 "$LEDGER" | cut -d, -f1-3 | sed 's/^/  /'
   echo
-  echo "And MGRZ is in none of them. The same six months of publication revised 445 of IKBJ's"
-  echo "664 periods and 0 of MGRZ's 887, so a gate that fires per load rather than per series"
-  echo "would have blocked a clean series on another publisher's rewrite."
+  echo "What those six months of publication did to each series:"
+  python3 -c "
+import json, sys
+for series, entry in json.loads(sys.argv[1]).items():
+    print(f\"  {series}  {entry['revised']:>4} of {entry['periods']} periods revised\")
+" "$PER_SERIES"
+  echo
+  echo "A gate that fires per load rather than per series would have blocked the untouched one"
+  echo "on another publisher's rewrite, which is how a gate ends up switched off."
 } > "$OUT/both-directions.txt"
 
 echo

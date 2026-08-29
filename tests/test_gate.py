@@ -148,3 +148,60 @@ def test_the_repository_does_not_claim_to_detect_a_disappearing_period() -> None
         "the model no longer says that a disappearing period goes undetected, so a reader is "
         "left to assume the gate covers a case it does not"
     )
+
+
+def test_the_per_series_split_in_the_transcript_is_the_one_in_the_summary() -> None:
+    """FOUR NUMBERS THAT USED TO BE TYPED INTO A HEREDOC.
+
+    The transcript's closing contrast, a series rewritten against a series untouched, carried
+    445, 664, 0 and 887 as literal text. Every one of them was correct and none of them was
+    computed, so a recapture would have moved the measurement and left the sentence standing.
+    That is the defect this repository exists to detect, in its own evidence.
+    """
+    per_series = summary()["per_series_in_the_declared_window"]
+    text = (EVIDENCE / "both-directions.txt").read_text(encoding="utf-8")
+
+    assert len(per_series) >= 2, "one series cannot show a contrast between two"
+    for series, entry in per_series.items():
+        assert f"{series}  {entry['revised']:>4} of {entry['periods']} periods revised" in text, (
+            f"the transcript does not show {series} as {entry['revised']} of {entry['periods']}, "
+            f"so the prose and the summary describe different builds"
+        )
+
+    revised = [entry["revised"] for entry in per_series.values()]
+    assert sum(revised) == summary()["revisions_in_the_declared_window"]
+    assert min(revised) == 0, (
+        "every series was revised in this window, so the argument for a per-series gate has no "
+        "example in the evidence and must not be made in this file"
+    )
+    assert max(revised) > 0
+
+
+def test_the_untouched_series_is_untouched_in_the_corpus_and_not_only_in_the_model() -> None:
+    """The contrast has to survive being asked of the data instead of the warehouse.
+
+    A per-series count read off the same model the gate builds proves the model consistent with
+    itself. The claim is about the publisher: that in these six months one series was rewritten
+    and another was not touched at all, which is checkable straight from the committed CSVs.
+    """
+    window = sorted(entry["released"] for entry in ledger())
+    first, last = window[0], window[-1]
+
+    vintages = REPO / "src" / "quarryz" / "data" / "vintages"
+    untouched = [
+        series
+        for series, entry in summary()["per_series_in_the_declared_window"].items()
+        if entry["revised"] == 0
+    ]
+    assert untouched, "no series was left alone, so there is nothing to check"
+
+    for series in untouched:
+        path = vintages / f"{series}.csv"
+        with path.open(encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        known = {row["period"] for row in rows if row["released"] < first}
+        changed_inside = {row["period"] for row in rows if first <= row["released"] <= last}
+        assert not (known & changed_inside), (
+            f"{series} is recorded as revising nothing in this window, and its own corpus shows "
+            f"{len(known & changed_inside)} already-published periods changing inside it"
+        )

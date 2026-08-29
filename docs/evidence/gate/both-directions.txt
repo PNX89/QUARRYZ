@@ -17,6 +17,11 @@ The seven releases the ledger declares, and what each moved:
   KAC3,2023-11-14,1
   KAC3,2023-12-12,2
 
-And MGRZ is in none of them. The same six months of publication revised 445 of IKBJ's
-664 periods and 0 of MGRZ's 887, so a gate that fires per load rather than per series
-would have blocked a clean series on another publisher's rewrite.
+What those six months of publication did to each series:
+  DZLS   442 of 516 periods revised
+  IKBJ   445 of 664 periods revised
+  KAC3   171 of 266 periods revised
+  MGRZ     0 of 887 periods revised
+
+A gate that fires per load rather than per series would have blocked the untouched one
+on another publisher's rewrite, which is how a gate ends up switched off.
