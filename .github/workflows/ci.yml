@@ -65,6 +65,30 @@ jobs:
           git diff --exit-code -- docs/evidence/collapse
           test -z "$(git status --porcelain docs/evidence/collapse)"
 
+  # The demo, which is the one thing here a reader can run without installing an engine, an S3
+  # emulator or a database. Its captured output is what the portfolio card shows, so it is
+  # regenerated on every push and the build fails if a byte moved.
+  demo:
+    name: the demo a reader can run with nothing installed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      # THE DOCUMENTED LINE, RUN AS WRITTEN. The capture below invokes the same file through
+      # subprocess, which proves the demo works and not that the command the README hands a
+      # reader does. Those are different claims and the second one is the one a stranger tests.
+      - name: run the demo exactly as the README tells a reader to
+        run: uv run python examples/what_the_publisher_changed.py
+      - name: run the demo and capture what it printed
+        run: uv run python scripts/capture_demo.py
+      - name: fail if the captured output has changed
+        run: |
+          git status --porcelain docs/evidence/demo.txt
+          git diff --exit-code -- docs/evidence/demo.txt
+          test -z "$(git status --porcelain docs/evidence/demo.txt)"
+
   # The Iceberg leg. Needs moto, pyiceberg and pyarrow, which the offline suite deliberately
   # does not, so it is its own job and the boundary of the test rig stays legible.
   snapshots:

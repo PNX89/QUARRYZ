@@ -25,6 +25,12 @@ One file to start with: [`src/quarryz/stores.py`](src/quarryz/stores.py). It nam
 and every claim it makes about a storage design is joined to a measurement under
 [`docs/evidence/`](docs/evidence).
 
+One command to start with, which needs nothing but Python:
+
+```text
+uv run python examples/what_the_publisher_changed.py
+```
+
 ## What a key throws away, measured on 23,943 published values
 
 The four series in this repository carry 23,943 recorded changes across 535 published versions.
@@ -126,10 +132,11 @@ and when, and the tests recompute every figure in it that a CSV of numbers can s
 
 ## Run it
 
-The offline suite needs nothing but Python. It reads committed JSON and CSV, and it is what a
-stranger gets by cloning this:
+The demo and the offline suite need nothing but Python. Both read committed JSON and CSV, and
+they are what a stranger gets by cloning this:
 
 ```text
+uv run python examples/what_the_publisher_changed.py
 uv run pytest
 ```
 
