@@ -8,6 +8,10 @@ quarter's research.**
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
+![A real run: every value the UK public sector net borrowing series has carried for 2021, the
+date the publisher said each one, and what three storage keys keep out of 23,943 published
+values.](docs/demo.svg)
+
 Three clocks run through any warehouse holding official statistics, and two of them are
 routinely mistaken for each other.
 
