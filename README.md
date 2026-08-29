@@ -207,6 +207,8 @@ Part of the Q...Z toolset, all of it designing for the failure that does not ann
   failure that no single field finds.
 - QUARRYZ, this one: keeping every version a statistical office published, and failing the build
   when it quietly issues another.
+- [QUASHZ](https://github.com/PNX89/QUASHZ), refusing a row whose outcome had not been decided
+  yet when the decision would have been made.
 
 **On QUIZZ.** QUIZZ answers a question about a revisable number at a stated knowing-time, and it
 needs a store that can still produce the earlier answer. This is that store, and building it
