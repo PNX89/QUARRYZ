@@ -213,6 +213,8 @@ Part of the Q...Z toolset, all of it designing for the failure that does not ann
   re-running the same configuration does not buy another.
 - [QUEUEZ](https://github.com/PNX89/QUEUEZ), ordering a feed by its sequence, because on a real
   recorded session the clock goes backwards.
+- [QUANDARYZ](https://github.com/PNX89/QUANDARYZ), counting the distinct screens a component can
+  settle into when its responses arrive out of order.
 
 **On QUIZZ.** QUIZZ answers a question about a revisable number at a stated knowing-time, and it
 needs a store that can still produce the earlier answer. This is that store, and building it
