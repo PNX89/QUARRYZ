@@ -215,6 +215,8 @@ Part of the Q...Z toolset, all of it designing for the failure that does not ann
   recorded session the clock goes backwards.
 - [QUANDARYZ](https://github.com/PNX89/QUANDARYZ), counting the distinct screens a component can
   settle into when its responses arrive out of order.
+- [QUIETZ](https://github.com/PNX89/QUIETZ), watching whether the data arrived rather than
+  whether the server answered.
 
 **On QUIZZ.** QUIZZ answers a question about a revisable number at a stated knowing-time, and it
 needs a store that can still produce the earlier answer. This is that store, and building it
