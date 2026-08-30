@@ -8,14 +8,25 @@ $ dbt build   # with the committed ledger
 Completed successfully
 Done. PASS=6 WARN=0 ERROR=0 SKIP=0 NO-OP=0 REUSED=0 TOTAL=6
 
-The seven releases the ledger declares, and what each moved:
-  DZLS,2023-09-20,380
-  DZLS,2023-12-21,62
-  IKBJ,2023-10-11,445
-  KAC3,2023-08-14,1
-  KAC3,2023-09-11,167
-  KAC3,2023-11-14,1
-  KAC3,2023-12-12,2
+$ dbt build   # with one declaration's count blanked
+6 of 6 FAIL 1 assert_every_revision_was_declared ............................... [FAIL 1 in <elapsed>]
+  Got 1 result, configured to fail if != 0
+Done. PASS=5 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=6
+
+$ dbt build   # one morning declared as one release, over 2015-12 to 2016-02
+6 of 6 FAIL 2 assert_every_revision_was_declared ............................... [FAIL 2 in <elapsed>]
+  Got 2 results, configured to fail if != 0
+Done. PASS=5 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=6
+  that morning is IKBJ 2016-01-08: v3 moving 16 periods, v4 moving 14 periods
+
+The 7 publications the ledger declares, and what each moved:
+  DZLS,2023-09-20,v95,380
+  DZLS,2023-12-21,v98,62
+  IKBJ,2023-10-11,v111,445
+  KAC3,2023-08-14,v94,1
+  KAC3,2023-09-11,v95,167
+  KAC3,2023-11-14,v98,1
+  KAC3,2023-12-12,v99,2
 
 What those six months of publication did to each series:
   DZLS   442 of 516 periods revised

@@ -222,13 +222,18 @@ def main() -> int:
         sys.path.insert(0, str(ROOT / "src"))
         from quarryz.stores import as_of
 
+        # THE VERSION TRAVELS WITH THE ROW. as_of orders on (released, version), because a
+        # release date carrying two versions has no largest row without it, and this series has
+        # seventeen periods where it does.
         with (VINTAGES / f"{SERIES}.csv").open(encoding="utf-8", newline="") as handle:
-            triples = [
-                (row["period"], row["value"], row["released"]) for row in csv.DictReader(handle)
+            published = [
+                (row["period"], row["value"], row["released"], row["version"])
+                for row in csv.DictReader(handle)
             ]
+        absent = ("absent", "", "")
         by_vintage = {
-            "as_at_2023_06": (as_of(triples, PERIOD, BEFORE) or ("absent", ""))[0],
-            "as_at_2023_12": (as_of(triples, PERIOD, AFTER) or ("absent", ""))[0],
+            "as_at_2023_06": (as_of(published, PERIOD, BEFORE) or absent)[0],
+            "as_at_2023_12": (as_of(published, PERIOD, AFTER) or absent)[0],
         }
 
         # THE CHECK THAT THIS WENT OVER THE WIRE. A pyiceberg misconfiguration writing to the
@@ -294,11 +299,26 @@ def main() -> int:
                 f"{', '.join(entry['operation'] for entry in history)}",
                 file=handle,
             )
+            print(file=handle)
+            # THE TABLE AND NOT A SENTENCE, and the sentence that used to be here is why. It
+            # generalised from the one shape this exhibit performs, saying an overwrite is a
+            # delete and an append. That is true of a full overwrite of a populated table and
+            # of nothing else, and the retraction reached summary.json, tests/test_snapshots.py
+            # and the README while the line printed here was left standing, so the committed
+            # transcript contradicted the summary sitting in the same directory. Prose written
+            # once outlives the measurement it was drawn from; a printed table cannot.
             print(
-                "An overwrite is two snapshots, a DELETE and an APPEND, so a retention rule",
+                "--- what an overwrite costs is a property of the CALL, not of the load ---",
                 file=handle,
             )
-            print("counting one snapshot per logical write is already wrong.", file=handle)
+            for shape, operations in variants.items():
+                print(f"  {shape:<28} {', '.join(operations)}", file=handle)
+            print(file=handle)
+            print(
+                "A snapshot is not a logical write, and a retention rule counting deletes is",
+                file=handle,
+            )
+            print("wrong about the middle one, which is the shape a loader writes.", file=handle)
             print(file=handle)
             print(
                 "--- the same question asked of the DATA rather than of the table ---", file=handle

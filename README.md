@@ -8,8 +8,8 @@ quarter's research.**
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-![A real run: every value the UK public sector net borrowing series has carried for 2021, the
-date the publisher said each one, and what three storage keys keep out of 23,943 published
+![A real run: every value IKBJ, the UK total trade balance, has carried for 2021, the date the
+publisher said each one, and what three storage keys keep out of 23,943 published
 values.](docs/demo.svg)
 
 Three clocks run through any warehouse holding official statistics, and two of them are
@@ -39,14 +39,21 @@ uv run python examples/what_the_publisher_changed.py
 
 The four series in this repository carry 23,943 recorded changes across 535 published versions.
 Loading them into a ReplacingMergeTree, which is the ordinary way to hold a table that gets
-restated, gives four different answers depending on one line of DDL.
+restated, leaves three different row counts behind depending on one line of DDL, and the first
+of the three is arrived at two different ways.
 
-| Key | Rows kept | What it costs |
+| Key | Rows kept out of 23,943 | What it costs |
 |---|---|---|
-| `(series, period)` | 1 | every version but the last |
-| `(series, period)`, both rows in one insert | 1 | the earlier version never reaches disk |
+| `(series, period)` | 2,533 | every version but the last |
+| `(series, period)`, both rows in one insert | 2,533 | the same, and the earlier one never reaches disk |
 | `(series, period, vintage)` where `vintage` is a `Date` | 23,872 | **71 published values, silently** |
 | `(series, period, vintage, version)` | 23,943 | nothing |
+
+Rows one and two differ in WHEN the history goes rather than in how much of it, which is easier
+to see on two rows than on twenty thousand: two vintages inserted separately read 2 rows and
+then 1 after `OPTIMIZE TABLE ... FINAL`, while both in a single insert read 1 row in 1 part and
+the earlier value was never written to disk at all. That fixture is in
+[`docs/evidence/collapse/`](docs/evidence/collapse), beside the whole-corpus counts above.
 
 The third row is the one worth pausing on, because it was this repository's own recommendation.
 A vintage stored as a date looks like a total order and is not one: the publisher can issue two
@@ -58,7 +65,8 @@ design is kept there beside the right one rather than deleted.
 ## The build that fails when the publisher rewrites history
 
 The gate is a dbt test. A load that changes a value for a period the warehouse already holds
-must be declared in a ledger, and an undeclared change fails the build:
+must be declared in a ledger, naming the publication that made the change and how many periods
+it moved, and an undeclared change fails the build:
 
 <!-- quoted from docs/evidence/gate/both-directions.txt -->
 ```text
@@ -67,10 +75,30 @@ $ dbt build   # with the ledger emptied
   Got 7 results, configured to fail if != 0
 ```
 
-Emptying the ledger produces 7 undeclared release groups, and that failure is measured on every
+Emptying the ledger produces 7 undeclared publications, and that failure is measured on every
 CI run rather than described. So is the other direction: with the committed ledger declaring
-1,058 revised periods across 7 releases, the same build passes. A gate nobody has watched fail
-is a gate nobody has tested, and a gate that cannot be satisfied is one that gets switched off.
+1,058 revised periods across 7 publications, the same build passes. A gate nobody has watched
+fail is a gate nobody has tested, and a gate that cannot be satisfied is one that gets switched
+off.
+
+**The unit of declaration is the publication, not the day.** This model grouped on the series
+and the release date while the rest of the repository was proving that a release date is not a
+key, so two rewrites on one morning arrived as one row for a reviewer to approve. Asked over a
+window containing a morning this publisher issued twice, the gate now reports both, and a ledger
+declaring that morning once leaves both undeclared:
+
+<!-- quoted from docs/evidence/gate/both-directions.txt -->
+```text
+$ dbt build   # one morning declared as one release, over 2015-12 to 2016-02
+  Got 2 results, configured to fail if != 0
+  that morning is IKBJ 2016-01-08: v3 moving 16 periods, v4 moving 14 periods
+```
+
+**A blank count is not a declaration.** Comparing a declared count against a blank cell gives
+NULL rather than TRUE, so a declaration with an empty count used to fall out of the condition
+and pass the build while asserting nothing about what it moved. The harness declares the
+ledger's largest publication with its count removed and requires that build to fail, because an
+arm of a condition that nothing reaches is an arm nobody has tested.
 
 **A new period is not a revision.** Every load adds periods, because time passes. A gate firing
 on those fires on every load and is gone within a week, so the model joins only on periods the

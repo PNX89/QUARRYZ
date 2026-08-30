@@ -128,6 +128,46 @@ def test_the_december_corpus_is_not_merely_a_changed_value() -> None:
     )
 
 
+def test_the_transcript_prints_the_measured_shapes_rather_than_a_sentence_about_them() -> None:
+    """A RETRACTION THAT REACHED THREE FILES AND NOT THE FOURTH.
+
+    The test above is labelled A CORRECTION: the claim that an overwrite costs a delete and an
+    append is true of a full overwrite of a populated table and of nothing else, and the summary
+    beside this transcript records the filtered form as append, overwrite, append, with no
+    delete in it at all. That retraction was applied to summary.json, to that test and to the
+    README, and the line the harness printed into the transcript was left standing, so the
+    committed evidence contradicted the summary in its own directory.
+
+    (The withdrawn wording is deliberately not quoted here. This guard forbids it in a
+    transcript, and a guard whose own file carries the thing it forbids is a trap this portfolio
+    has walked into more than once.)
+
+    The sentence is gone and the measured shapes are printed, which is the only version that
+    cannot outlive the measurement. Both directions are checked: every shape reaches the page
+    with the operations it was measured to cost, and no other line describes what an overwrite
+    costs, because that is where a generalisation gets back in.
+    """
+    lines = transcript().splitlines()
+    variants = summary()["overwrite_variants"]
+    assert len(variants) > 1, "one shape of write cannot show that the cost depends on the shape"
+
+    for shape, operations in variants.items():
+        wanted = ", ".join(operations)
+        assert any(shape in line and wanted in line for line in lines), (
+            f"the transcript does not show {shape} costing {wanted}, so the page and the "
+            f"summary beside it describe different runs"
+        )
+
+    printed = {line for line in lines if any(shape in line for shape in variants)}
+    for line in lines:
+        if line in printed or "overwrite" not in line.lower():
+            continue
+        assert not any(word in line.lower() for word in ("delete", "append")), (
+            f"a line of the transcript says what an overwrite costs outside the measured table, "
+            f"which is how the generalisation got in the first time: {line.strip()!r}"
+        )
+
+
 def test_the_transcript_shows_the_two_questions_side_by_side() -> None:
     """So a reader sees the difference rather than being told about it."""
     text = transcript()

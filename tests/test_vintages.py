@@ -117,14 +117,83 @@ def test_the_recorded_counts_are_the_ones_in_the_files(cdid: str) -> None:
     assert walked == sorted(walked), f"{cdid} records the shared dates out of order"
     assert len(set(walked)) == len(walked), f"{cdid} records a shared date twice"
 
-    # `title` and `why` are editorial and cannot be recomputed from a CSV of numbers. They are
-    # checked for presence and named here as the two that are not derived, rather than left for
-    # a reader to work out which of the twelve fields this test actually stands behind.
+    # `title` is editorial and cannot be recomputed from a CSV of numbers, so it is named here
+    # as the one field this test does not stand behind. `why` USED TO BE NAMED BESIDE IT AND WAS
+    # NOT EDITORIAL: three of the four stated a count, and two of those counts were wrong. The
+    # figures moved into `why_numbers`, which the test below recomputes, and what is left in
+    # `why` is held to prose.
     assert entry["title"].strip()
     assert entry["why"].strip()
     assert entry["distinct_titles_over_time"], f"{cdid} records no title at all"
     assert entry["url"].endswith("/data")
     assert cdid.lower() in entry["url"]
+
+
+@pytest.mark.parametrize("cdid", series_names())
+def test_the_figures_inside_why_are_recomputed_from_the_rows(cdid: str) -> None:
+    """THE FIELD A COMMENT USED TO EXCUSE AS UNVERIFIABLE, AND TWO OF ITS NUMBERS WERE WRONG.
+
+    `why` said DZLS annual 2020 had "seventeen distinct value states ... the clearest case in
+    the set". That period carries forty-five states, and it is not the clearest case: 2016 Q2
+    carries fifty-four. It said KAC3's March 2010 had "read 4.3, 2.9, 4.9 and 5.0", and the
+    corpus also carries 2.8, published 2020-02-18. MGRZ's "revised in 249 of 941 periods"
+    recomputes exactly, which is the tell: one of the three was derived and two were typed.
+
+    The sentence was the source of truth in `scripts/capture_vintages.py`, so re-running the
+    capture could not have corrected it. Every figure now comes from the rows the capture just
+    wrote, and it is recomputed here from the committed CSV rather than from that function,
+    because checking a computation with the same computation checks nothing.
+    """
+    captured = rows(cdid)
+    numbers = described(cdid)["why_numbers"]
+
+    states: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    for row in captured:
+        states[row["period"]].append((row["released"], row["value"]))
+
+    assert numbers["periods"] == len(states)
+    assert numbers["periods_revised"] == sum(1 for seq in states.values() if len(seq) > 1)
+
+    ranked = sorted(
+        ((len({value for _, value in seq}), period) for period, seq in states.items()),
+        key=lambda pair: (-pair[0], pair[1]),
+    )
+    assert (numbers["most_restated_period_states"], numbers["most_restated_period"]) == ranked[0], (
+        f"{cdid} records {numbers['most_restated_period']} at "
+        f"{numbers['most_restated_period_states']} states and the corpus makes it {ranked[0]}"
+    )
+
+    biggest, moved = 0, ("", "", "", "")
+    for period, sequence in states.items():
+        for (_, was), (released, now) in pairwise(sequence):
+            if WITHDRAWN in (was, now):
+                continue
+            size = abs(int(float(now)) - int(float(was)))
+            if size > biggest:
+                biggest, moved = size, (period, was, now, released)
+    recorded = numbers["largest_revision"]
+    assert (
+        recorded["period"],
+        recorded["was"],
+        recorded["now"],
+        recorded["released"],
+        recorded["size"],
+    ) == (*moved, biggest), f"{cdid} records {recorded} and the corpus gives {moved} at {biggest}"
+
+
+@pytest.mark.parametrize("cdid", series_names())
+def test_why_states_no_figure_a_csv_could_settle(cdid: str) -> None:
+    """The contract that keeps the split honest, rather than a comment saying it is honest.
+
+    `why` is the one field nothing recomputes, so the smaller it is the less rides on trust.
+    A digit in it is a figure somebody typed, and this repository has already been caught twice
+    by exactly that: the number goes in `why_numbers`, where a recapture rewrites it.
+    """
+    why = described(cdid)["why"]
+    assert not any(character.isdigit() for character in why), (
+        f"{cdid} states a figure in `why`, which nothing recomputes: {why!r}. Numbers belong in "
+        f"`why_numbers`, which the capture derives from the rows it just wrote"
+    )
 
 
 def test_a_release_date_is_not_a_unique_key() -> None:
@@ -320,6 +389,18 @@ def test_the_headline_revision_is_the_largest_in_the_corpus() -> None:
     )
     assert size == 24521, f"the largest revision is {size}, and the quoted figure is 24,521"
     assert when == "2023-10-11"
+
+    # AND THE SUPERLATIVE ITSELF, joined to what each series recorded. IKBJ's `why` says it
+    # carries the largest single revision found anywhere in these four, which is a claim about
+    # the other three and was checked against none of them.
+    per_series = {
+        name: described(name)["why_numbers"]["largest_revision"] for name in series_names()
+    }
+    winner = max(per_series, key=lambda name: int(per_series[name]["size"]))
+    assert (winner, per_series[winner]["size"]) == (cdid, size), (
+        f"{winner} records the largest revision in this corpus at {per_series[winner]['size']}, "
+        f"and {cdid} is the series whose entry claims it"
+    )
 
 
 def test_the_headline_revision_is_in_the_data_with_the_numbers_the_readme_quotes() -> None:

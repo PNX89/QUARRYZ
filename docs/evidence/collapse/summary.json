@@ -24,6 +24,7 @@
     "rows": 23943,
     "kept_by_a_pair_key": 23943,
     "kept_by_a_date_key": 23872,
+    "kept_by_a_period_key": 2533,
     "destroyed_by_a_date_key": 71
   }
 }

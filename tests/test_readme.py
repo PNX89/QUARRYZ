@@ -73,6 +73,43 @@ def test_the_numbers_on_the_page_are_the_measured_ones() -> None:
     assert missing == {}, f"the README no longer states these measured figures: {missing}"
 
 
+def test_every_row_of_the_key_table_states_its_own_measured_survivor_count() -> None:
+    """NUMBER, in the direction the invented-number guard below cannot see.
+
+    The column read 1, 1, 23,872, 23,943 under a heading promising "measured on 23,943 published
+    values". The first two were a two-row ClickHouse fixture's answer standing in a column of
+    corpus counts, so the page overstated the obvious key's damage by three orders of magnitude,
+    and the picture at the top of the same page displayed the right figure. The guard below
+    could not see it: it inspects comma-grouped numbers of four digits and up, and 1 has one
+    digit.
+
+    So each row is joined to the measurement for its own key, and the number of rows is pinned,
+    because a table that quietly loses a design is a page offering three choices where the
+    repository measures four.
+    """
+    corpus = evidence("collapse")["whole_corpus"]
+    survivors = {
+        "(series, period)": corpus["kept_by_a_period_key"],
+        "(series, period, vintage)": corpus["kept_by_a_date_key"],
+        "(series, period, vintage, version)": corpus["kept_by_a_pair_key"],
+    }
+
+    table = [line for line in README.splitlines() if line.startswith("| `(series")]
+    assert len(table) == 4, f"the key table now has {len(table)} rows"
+
+    for line in table:
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        found = re.search(r"\(series[^)]*\)", cells[0])
+        assert found, f"the first cell of {line!r} names no sort key"
+        key = " ".join(found.group(0).split())
+        assert key in survivors, f"the page offers a key nothing measured: {key}"
+        kept = int(re.sub(r"[^0-9]", "", cells[1]))
+        assert kept == survivors[key], (
+            f"the page says a table keyed {key} keeps {kept:,} of the corpus and the engine "
+            f"kept {survivors[key]:,}"
+        )
+
+
 def test_the_headline_revision_on_the_page_is_the_arithmetic_of_the_corpus() -> None:
     """NUMBER, and the one a reader is most likely to quote back.
 
@@ -169,6 +206,47 @@ def test_every_path_and_link_on_the_page_exists() -> None:
     assert missing == [], f"the README points at paths that do not exist: {missing}"
 
 
+def test_the_hero_caption_names_the_series_the_image_shows() -> None:
+    """REFERENCE, and the claim on this page a reader checks first because it is the picture.
+
+    The caption described the image as the UK public sector net borrowing series, which is DZLS.
+    The image renders the demo, the demo follows IKBJ, and the README itself gets that right a
+    hundred lines further down, so the page contradicted itself in the caption of the first
+    thing anybody looks at. That reads as not knowing what your own headline number measures.
+
+    So the caption is joined to two things it has to agree with: the series code the SVG carries,
+    and that series' title in SOURCE.json. The negative half is the half that would have caught
+    it, because the caption that shipped quoted the right corpus size and the wrong series.
+    """
+    # `[^]]*` AND NOT `.*?`, because the page opens with three badges. A lazy dot starting at
+    # the first `![` on the page runs from the CI badge all the way to this image's own closing
+    # parenthesis, so the "caption" under test would include two URLs and the real alt text.
+    alt = re.search(r"!\[([^]]*)\]\(docs/demo\.svg\)", README)
+    assert alt, "the page no longer carries the demo image, or its alt text is gone"
+    caption = " ".join(alt.group(1).split())
+
+    titles = {entry["cdid"]: entry["title"] for entry in source()["series"]}
+    svg = (REPO / "docs" / "demo.svg").read_text(encoding="utf-8")
+    shown = [cdid for cdid in titles if cdid in svg]
+    assert len(shown) == 1, f"the image names {shown}, so there is no one series to caption"
+    subject = shown[0]
+
+    def opening(title: str) -> str:
+        """The first three words of the published title, which is how a person names a series."""
+        return " ".join(re.findall(r"[a-z]+", title.lower())[:3])
+
+    assert subject in caption, f"the caption does not name {subject}, the series in the image"
+    assert opening(titles[subject]) in caption.lower(), (
+        f"the caption names {subject} and never says what it measures, which is {titles[subject]}"
+    )
+    for cdid, title in titles.items():
+        if cdid == subject:
+            continue
+        assert cdid not in caption and opening(title) not in caption.lower(), (
+            f"the caption describes {cdid}, {title}, and the image is of {subject}"
+        )
+
+
 def test_the_page_does_not_claim_to_answer_the_question_a_sibling_answers() -> None:
     """The boundary this repository has to hold, asserted rather than remembered.
 
@@ -235,6 +313,7 @@ def test_no_large_number_on_the_page_is_one_nothing_measured() -> None:
     measured: set[int] = {
         collapse["whole_corpus"]["rows"],
         collapse["whole_corpus"]["kept_by_a_date_key"],
+        collapse["whole_corpus"]["kept_by_a_period_key"],
         collapse["whole_corpus"]["destroyed_by_a_date_key"],
         gate["revisions_in_the_declared_window"],
         gate["undeclared_release_groups_when_ledger_emptied"],

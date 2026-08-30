@@ -143,6 +143,13 @@ ch "CREATE TABLE corpus (
 CORPUS_ROWS=$(ch "SELECT count() FROM corpus")
 KEPT_BY_PAIR=$(ch "SELECT uniqExact((series, period, released, version)) FROM corpus")
 KEPT_BY_DATE=$(ch "SELECT uniqExact((series, period, released)) FROM corpus")
+# THE OBVIOUS KEY OVER THE WHOLE CORPUS, and the figure that was missing. Everything above
+# measures the obvious key on two rows, which shows the mechanism and says nothing about the
+# scale, so the README's key table quoted the fixture's 1 in a column whose other two rows were
+# corpus counts. That reads as a naive key destroying all but one row of 23,943, and it destroys
+# all but 2,533: an overstatement of three orders of magnitude, in the one direction a
+# repository about measured claims cannot afford.
+KEPT_BY_PERIOD=$(ch "SELECT uniqExact((series, period)) FROM corpus")
 DESTROYED=$((CORPUS_ROWS - KEPT_BY_DATE))
 
 {
@@ -168,12 +175,13 @@ DESTROYED=$((CORPUS_ROWS - KEPT_BY_DATE))
   echo "rows loaded                            -> $CORPUS_ROWS"
   echo "surviving a (series, period, released, version) key -> $KEPT_BY_PAIR"
   echo "surviving a (series, period, released) key          -> $KEPT_BY_DATE"
+  echo "surviving a (series, period) key                    -> $KEPT_BY_PERIOD"
   echo "published values a date-only key destroys           -> $DESTROYED"
 } > "$OUT/the-vintage-in-the-key.txt"
 
 export BEFORE_PLAIN AFTER_PLAIN BEFORE_FINAL AFTER_FINAL SURVIVOR ONE_INSERT_ROWS \
   ONE_INSERT_PARTS BY_DATE_BEFORE BY_DATE_AFTER BY_DATE_SURVIVOR BY_PAIR AS_OF_V3 AS_OF_V4 \
-  CORPUS_ROWS KEPT_BY_PAIR KEPT_BY_DATE DESTROYED
+  CORPUS_ROWS KEPT_BY_PAIR KEPT_BY_DATE KEPT_BY_PERIOD DESTROYED
 
 python3 - "$OUT/summary.json" <<'PYTHON'
 import json, os, sys
@@ -207,6 +215,7 @@ summary = {
         "rows": number("CORPUS_ROWS"),
         "kept_by_a_pair_key": number("KEPT_BY_PAIR"),
         "kept_by_a_date_key": number("KEPT_BY_DATE"),
+        "kept_by_a_period_key": number("KEPT_BY_PERIOD"),
         "destroyed_by_a_date_key": number("DESTROYED"),
     },
 }
@@ -232,6 +241,11 @@ if summary["whole_corpus"]["destroyed_by_a_date_key"] <= 0:
 if summary["whole_corpus"]["kept_by_a_pair_key"] != summary["whole_corpus"]["rows"]:
     print("the pair key loses rows too, which would mean the corpus contains two identical "
           "keys and the capture is wrong rather than the engine", file=sys.stderr)
+    raise SystemExit(1)
+if not (summary["whole_corpus"]["kept_by_a_period_key"]
+        < summary["whole_corpus"]["kept_by_a_date_key"]):
+    print("a period-only key keeps as much as a date key over this corpus, so the two designs "
+          "the README separates are the same design and the table must say so", file=sys.stderr)
     raise SystemExit(1)
 
 with open(sys.argv[1], "w", encoding="utf-8") as handle:

@@ -71,10 +71,22 @@ def test_every_declared_release_is_one_the_data_actually_contains() -> None:
             for row in csv.DictReader(handle):
                 releases[path.stem].add(row["released"])
 
+    published: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    for path in sorted(vintages.glob("*.csv")):
+        with path.open(encoding="utf-8", newline="") as handle:
+            for row in csv.DictReader(handle):
+                published[path.stem].add((row["released"], row["version"]))
+
     for entry in ledger():
         assert entry["released"] in releases[entry["series"]], (
             f"the ledger declares {entry['series']} {entry['released']}, and that series has no "
             f"release on that date"
+        )
+        # AND THE VERSION, because the date alone is what this gate stopped keying on. A
+        # declaration naming a version the publisher never issued on that date reviews nothing.
+        assert (entry["released"], entry["version"]) in published[entry["series"]], (
+            f"the ledger declares {entry['series']} {entry['version']} on {entry['released']}, "
+            f"and that series published no such version on that date"
         )
         assert int(entry["periods_expected"]) > 0
         assert entry["note"].strip(), (
@@ -94,11 +106,71 @@ def test_the_ledger_declares_exactly_what_the_window_revised() -> None:
 
 
 def test_the_count_is_part_of_the_declaration_and_not_only_the_release() -> None:
-    """Otherwise declaring a release is a blanket permission for whatever it does next time."""
+    """Otherwise declaring a publication is a blanket permission for whatever it does next time.
+
+    A SUBSTRING SEARCH OVER THE MODEL USED TO BE THE WHOLE OF THIS TEST, and it was satisfied by
+    the text sitting inside a SQL comment: replacing the entire WHERE clause with `where false`
+    and leaving the three original lines commented out left this file green. A grep over a file
+    that contains commentary cannot tell a live clause from a retracted one.
+
+    So what is read is the outcome. The harness declares the ledger's largest publication with
+    an empty count and nothing else changed, and the build has to fail.
+    """
+    blanked = summary()["a_declaration_with_no_count"]
+    assert blanked["undeclared_publications"] > 0, (
+        "a declaration carrying no count satisfied the gate, so the release is declared and the "
+        "size of what it moved is not, which is a blanket permission with a note attached"
+    )
+    assert blanked["periods_it_moved"] > 0, (
+        "the blanked declaration covers no revision at all, so the measurement shows nothing"
+    )
+
+    # AND THAT IT WAS THE COUNT THAT DID IT, not a ledger the build could not read. The blanked
+    # row has to be one the committed ledger declares, or this measured a different failure.
+    declared = {(entry["series"], entry["released"], entry["version"]) for entry in ledger()}
+    assert (blanked["series"], blanked["released"], blanked["version"]) in declared, (
+        f"the harness blanked {blanked}, which the committed ledger does not declare, so the "
+        f"build could have failed for being handed a release nobody had reviewed"
+    )
+
+    text = (EVIDENCE / "both-directions.txt").read_text(encoding="utf-8")
+    assert "count blanked" in text, "the transcript does not show the build that was measured"
+
+
+def test_two_publications_on_one_morning_are_two_declarations() -> None:
+    """THE GATE'S OWN UNIT, and it was the one thing this repository spends its README rejecting.
+
+    `counted` grouped on (series, revised_at) and the ledger had no version column, so the unit
+    of declaration was the DAY. Twelve series-and-date pairs in this corpus carry two versions,
+    and one reviewer approving that row approved two separate rewrites as one. The exhibit date
+    is 2016-01-08, which is the same date docs/evidence/collapse uses to show that a date is not
+    a key: the model built to catch a publisher rewriting history was keyed on the thing the
+    repository exists to reject.
+
+    Measured rather than argued. The harness rebuilds over a window containing that morning,
+    reads the two publications out of the gate's own output, and offers a ledger declaring the
+    day once with the day's total. Both publications have to come back undeclared.
+    """
+    morning = summary()["one_morning_declared_as_one_release"]
+    publications = morning["publications"]
+    assert len(publications) >= 2, (
+        f"{morning['series']} {morning['released']} carries {len(publications)} publication, so "
+        f"the window shows nothing about a date being the wrong unit"
+    )
+    assert morning["undeclared_publications"] == len(publications), (
+        f"declaring {morning['released']} as one release left "
+        f"{morning['undeclared_publications']} of {len(publications)} publications undeclared. "
+        f"Anything short of all of them means part of that morning was waved through"
+    )
+
     model = (DBT / "models" / "undeclared_revisions.sql").read_text(encoding="utf-8")
-    assert "periods_expected != counted.periods" in model, (
-        "the gate matches on the release alone, so accepting one release accepts any number of "
-        "changes it makes on any later run"
+    assert "revised_by" in model.split("where")[0], (
+        "the gate no longer groups on the version, so two publications on one morning are one "
+        "release group again"
+    )
+    assert "version" in {field for entry in ledger() for field in entry}, (
+        "the ledger has no version column, so a declaration cannot name which publication it "
+        "reviewed even if the model asks for one"
     )
 
 
