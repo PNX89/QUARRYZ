@@ -122,12 +122,29 @@ def test_the_capture_date_is_not_in_the_future() -> None:
     Checking it against today would make this test fail every day after the capture, which is
     the same trap as diffing the file. What can honestly be said is that a capture cannot have
     happened tomorrow, and that a date in the future means the field was typed.
+
+    THIS CAUGHT A REAL SKEW RATHER THAN A HYPOTHETICAL ONE: scripts/capture_evidence.py used to
+    stamp the CAPTURING MACHINE'S local date. CI evaluates the assertion above against its own
+    runner, which is always UTC, so a capture made from a timezone east of Greenwich late in the
+    evening wrote a date CI had not reached yet and failed the offline suite on every Python
+    version, on a commit that changed nothing this test is actually about. Guarded directly:
+    the field must be computed from a UTC clock, not a local one, so the two sides of every
+    future comparison are always the same clock.
     """
     import datetime
 
     captured = datetime.date.fromisoformat(facts()["captured"])
     assert captured <= datetime.date.today(), (
         f"the card says it was captured on {captured}, which has not happened yet"
+    )
+
+    script = (REPO / "scripts" / "capture_evidence.py").read_text(encoding="utf-8")
+    assert "datetime.date.today()" not in script, (
+        "capture_evidence.py stamps 'captured' from the local machine's date again, which is "
+        "what let a contributor east of Greenwich publish a date CI, always UTC, calls the future"
+    )
+    assert "datetime.UTC" in script, (
+        "capture_evidence.py no longer computes 'captured' from a UTC clock"
     )
 
 

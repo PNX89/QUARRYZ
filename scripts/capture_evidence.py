@@ -149,7 +149,13 @@ def main() -> int:
         "tests": test_total(),
         "python": python_range(),
         "release": release(),
-        "captured": datetime.date.today().isoformat(),
+        # UTC, NOT THE CAPTURING MACHINE'S CLOCK. CI evaluates test_the_capture_date_is_not_in_
+        # the_future against its own runner, which is always UTC, and a contributor east of
+        # Greenwich who captures late in the evening was writing a date CI had not reached yet:
+        # measured directly, a capture at 2026-08-31 00:11 CEST is 2026-08-30 22:11 UTC. A card
+        # that fails its own build over which side of midnight the laptop sits on is not
+        # measuring anything about the repository.
+        "captured": datetime.datetime.now(datetime.UTC).date().isoformat(),
         "runUrl": f"https://github.com/{slug}/actions/runs/{run_id}" if run_id else None,
     }
     FACTS.write_text(json.dumps(facts, indent=2) + "\n", encoding="utf-8")
