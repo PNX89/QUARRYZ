@@ -235,3 +235,52 @@ def test_a_withdrawal_comes_back_as_a_withdrawal_and_not_as_a_number() -> None:
     assert answer is not None and answer[0] == "WITHDRAWN", (
         f"as at {released} the publisher had withdrawn {period}, and as_of answered {answer}"
     )
+
+
+def test_the_two_version_figure_is_recomputed_from_the_corpus() -> None:
+    """Three sentences in stores.py said 28. The corpus has 12.
+
+    THE INTERESTING PART IS THAT THIS REPOSITORY ALREADY KNEW. `scripts/measure_agreement.py`
+    carries the same correction about a different figure, where it once said 15 and the truth was
+    17, and its comment explains why: 15 was "true of the publisher's version WALK and not of
+    this table". A count over the publisher's release history is not a count of the rows that
+    reached disk, because a second version that changed no value never enters a corpus that
+    records changes.
+
+    That lesson was written down in one file and not carried to its neighbour, and the neighbour
+    is the file the README tells a reader to open first.
+
+    Recomputed here rather than pinned, so the sentence and the data cannot part company again.
+    """
+    import csv
+    from collections import defaultdict
+
+    vintages = REPO / "src" / "quarryz" / "data" / "vintages"
+    versions: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for path in sorted(vintages.glob("*.csv")):
+        with path.open(encoding="utf-8", newline="") as handle:
+            for row in csv.DictReader(handle):
+                versions[(path.stem, row["released"])].add(row["version"])
+
+    colliding = [key for key, seen in versions.items() if len(seen) > 1]
+    pairs = len(colliding)
+    dates = len({key[1] for key in colliding})
+
+    source = (REPO / "src" / "quarryz" / "stores.py").read_text(encoding="utf-8")
+    flat = " ".join(source.split())
+
+    assert f"{pairs} series-and-date pairs" in flat, (
+        f"the corpus has {pairs} series-and-date pairs carrying two versions and stores.py does "
+        f"not say so. A number in the file a reader opens first has parted company with the data"
+    )
+    assert f"across {dates}" in flat, f"the collisions fall on {dates} distinct dates"
+    assert "28 dates in this corpus" not in flat, (
+        "the publisher-walk figure is back. It counts release events, not rows on disk, and the "
+        "two differ because a version that changed no value never enters this corpus"
+    )
+
+    # The per-series split, so a corpus swap that preserved the total would still be caught.
+    per = {series: sum(1 for k in colliding if k[0] == series) for series, _ in colliding}
+    assert per == {"DZLS": 3, "IKBJ": 2, "KAC3": 4, "MGRZ": 3}, per
+    # And the IKBJ figure is the one tests/test_agreement.py has always asserted separately.
+    assert per["IKBJ"] == 2
