@@ -6,8 +6,14 @@ load 2, THE SAME DATA AGAIN               -28039
 load 3, the corpus as at 2023-12          -3518
 
 5 snapshots for 3 loads: append, delete, append, delete, append
-An overwrite is two snapshots, a DELETE and an APPEND, so a retention rule
-counting one snapshot per logical write is already wrong.
+
+--- what an overwrite costs is a property of the CALL, not of the load ---
+  overwrite_of_an_empty_table  append
+  overwrite_with_a_filter      append, overwrite, append
+  full_overwrite_twice         append, delete, append, delete, append
+
+A snapshot is not a logical write, and a retention rule counting deletes is
+wrong about the middle one, which is the shape a loader writes.
 
 --- the same question asked of the DATA rather than of the table ---
 what had the publisher said as at 2023-06   -28039

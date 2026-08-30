@@ -59,6 +59,8 @@ import pathlib
 import time
 import urllib.error
 import urllib.request
+from collections import defaultdict
+from itertools import pairwise
 from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -77,30 +79,30 @@ SERIES: dict[str, dict[str, str]] = {
         "path": "economy/nationalaccounts/balanceofpayments",
         "dataset": "mret",
         "title": "Total trade balance, current prices, seasonally adjusted, GBP million",
-        "why": "The largest single revision found anywhere in these four: annual 2021 moved "
-        "from -28,039 to -3,518 between the versions published 2023-09-12 and 2023-10-11. It "
-        "also carries the withdrawal case, April 1997, and 12 correction notices.",
+        "why": "It carries the largest single revision found anywhere in these four, which is "
+        "the figure this repository quotes, and it carries the withdrawal case: a period the "
+        "publisher emptied and later refilled.",
     },
     "DZLS": {
         "path": "economy/governmentpublicsectorandtaxes/publicsectorfinance",
         "dataset": "pusf",
         "title": "Public sector net borrowing excluding public sector banks, GBP million",
-        "why": "Annual 2020 has seventeen distinct value states across its publication history, "
-        "which is the clearest case in the set of a number nobody should quote without a date.",
+        "why": "Almost every period this series has ever published has since been restated, so "
+        "a warehouse holding only the latest figure is wrong about nearly all of it.",
     },
     "KAC3": {
         "path": "employmentandlabourmarket/peopleinwork/earningsandworkinghours",
         "dataset": "lms",
         "title": "Average weekly earnings, year on year three month average growth, per cent",
-        "why": "A rate rather than a level, so a revision cannot be explained away as a "
-        "rescaling. March 2010 has read 4.3, 2.9, 4.9 and 5.0 at different times.",
+        "why": "A rate rather than a level, so a revision here cannot be explained away as a "
+        "rescaling of the whole series.",
     },
     "MGRZ": {
         "path": "employmentandlabourmarket/peopleinwork/employmentandemployeetypes",
         "dataset": "lms",
         "title": "People in employment, aged 16 and over, seasonally adjusted, thousands",
-        "why": "The mildest of the four, revised in 249 of 941 periods, which is the control: a "
-        "warehouse that only ever sees heavy revisers is not being asked a hard question.",
+        "why": "The control, revised in a minority of its periods: a warehouse that only ever "
+        "sees heavy revisers is not being asked a hard question.",
     },
 }
 
@@ -205,6 +207,58 @@ def changes(versions: list[dict[str, Any]]) -> list[dict[str, str]]:
     return rows
 
 
+def why_numbers(rows: list[dict[str, str]]) -> dict[str, Any]:
+    """The figures `why` used to state in words, computed from the rows just written.
+
+    TWO OF THE THREE TYPED FIGURES WERE WRONG. `why` said DZLS annual 2020 had seventeen
+    distinct value states, and that period carries forty-five; it said KAC3's March 2010 had
+    read four values, and the corpus holds five. The one that was right, MGRZ revised in 249 of
+    941 periods, recomputes exactly, so it was evidently derived once and the other two never
+    were. A test excused the whole field as editorial and not recomputable from a CSV of
+    numbers, which was true of the prose and false of three quarters of the sentence.
+
+    So the arithmetic lives here, where a recapture rewrites it, and `why` keeps only the part
+    a CSV genuinely cannot settle.
+    """
+    states: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    for row in rows:
+        states[row["period"]].append((row["released"], row["value"]))
+
+    # Ranked with the period label as the tie-break, because several periods share a count and
+    # a dict ordering would decide it otherwise: a recapture would then move this field with no
+    # measurement behind the move.
+    restated = sorted(
+        ((len({value for _, value in seq}), period) for period, seq in states.items()),
+        key=lambda pair: (-pair[0], pair[1]),
+    )
+
+    # A withdrawal is a revision of a different kind, and subtracting it from a number means
+    # nothing, so only adjacent numeric states are measured.
+    biggest, moved = 0, ("", "", "", "")
+    for period, seq in states.items():
+        for (_, was), (released, now) in pairwise(seq):
+            if WITHDRAWN in (was, now):
+                continue
+            size = abs(int(float(now)) - int(float(was)))
+            if size > biggest:
+                biggest, moved = size, (period, was, now, released)
+
+    period, was, now, released = moved
+    return {
+        "periods": len(states),
+        "periods_revised": sum(1 for seq in states.values() if len(seq) > 1),
+        "most_restated_period": restated[0][1],
+        "most_restated_period_states": restated[0][0],
+        "largest_revision": {
+            "period": period,
+            "was": was,
+            "now": now,
+            "released": released,
+            "size": biggest,
+        },
+    }
+
+
 def capture(cdid: str) -> dict[str, Any]:
     print(f"==> {cdid}, walking versions at one request per second")
     versions = walk(cdid)
@@ -227,6 +281,7 @@ def capture(cdid: str) -> dict[str, Any]:
         "cdid": cdid,
         "title": SERIES[cdid]["title"],
         "why": SERIES[cdid]["why"],
+        "why_numbers": why_numbers(rows),
         "url": f"https://www.ons.gov.uk/{SERIES[cdid]['path']}/timeseries/"
         f"{cdid.lower()}/{SERIES[cdid]['dataset']}/data",
         "versions": len(versions),

@@ -50,14 +50,26 @@ jobs:
           if LC_ALL=C grep -q -e "$EM" -e "$EN" site/index.html; then
             echo "site/index.html contains an em or en dash"; exit 1
           fi
-          # The card shows the demo's captured output, so it has to contain it. A card built
-          # from an older capture would publish numbers this repository no longer produces.
-          FIRST=$(head -1 docs/evidence/demo.txt)
-          grep -qF "$FIRST" site/index.html || {
-            echo "site/index.html does not contain the first line of docs/evidence/demo.txt"
-            echo "so the committed card was built from a different capture"
-            exit 1
-          }
+          # THE WHOLE TRANSCRIPT AND NOT ITS FIRST LINE, which is what this used to compare.
+          # The card embeds the demo's captured output, and a card built from an older capture
+          # matches on line one and publishes every stale figure below it. Twenty-six of the
+          # twenty-seven lines were accepted unread, so a page saying a date key keeps 9,999
+          # rows deployed to the public URL.
+          python3 - <<'PY'
+          import html, pathlib, re, sys
+
+          card = pathlib.Path("site/index.html").read_text(encoding="utf-8")
+          block = re.search(r"<pre[^>]*>(.*?)</pre>", card, re.S)
+          if block is None:
+              sys.exit("site/index.html shows no captured output at all")
+          shown = html.unescape(block.group(1)).strip("\n")
+          captured = pathlib.Path("docs/evidence/demo.txt").read_text(encoding="utf-8").strip("\n")
+          if shown != captured:
+              sys.exit(
+                  "site/index.html does not show docs/evidence/demo.txt, so the committed card "
+                  "was built from a different capture"
+              )
+          PY
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site

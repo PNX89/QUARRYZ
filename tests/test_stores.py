@@ -16,11 +16,12 @@ from __future__ import annotations
 import csv
 import json
 import pathlib
+import re
 from typing import Any
 
 import pytest
 
-from quarryz.stores import CLOCKS, STORES, Store, as_of
+from quarryz.stores import CLOCKS, STORES, Store, as_of, published_after
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 EVIDENCE = REPO / "docs" / "evidence" / "collapse" / "summary.json"
@@ -40,9 +41,78 @@ def measurement(dotted: str) -> Any:
     return node
 
 
-def triples(cdid: str) -> list[tuple[str, str, str]]:
+def published(cdid: str) -> list[tuple[str, str, str, str]]:
+    """The corpus in the shape as_of takes it: period, value, release date and VERSION."""
     with (VINTAGES / f"{cdid}.csv").open(encoding="utf-8", newline="") as handle:
-        return [(row["period"], row["value"], row["released"]) for row in csv.DictReader(handle)]
+        return [
+            (row["period"], row["value"], row["released"], row["version"])
+            for row in csv.DictReader(handle)
+        ]
+
+
+def sort_key(text: str) -> str:
+    """The DDL tuple inside a design's name, which is the thing that distinguishes the four.
+
+    Matched rather than the whole name, so the surrounding prose can be reworded on either side
+    of the join without the join becoming a transcription of it.
+    """
+    found = re.search(r"\(series[^)]*\)", text)
+    assert found, f"no sort key in {text!r}, so there is nothing to compare it by"
+    return " ".join(found.group(0).split())
+
+
+def test_the_four_designs_are_the_four_the_readme_offers() -> None:
+    """A PARAMETRISED SET READ OUT OF THE CODE UNDER TEST IS NOT A CHECK ON THAT SET.
+
+    Every other test in this file iterates STORES, so deleting an entry deletes the checking of
+    it and the suite goes green one case lighter, which reads exactly like a pass. Removing the
+    fourth entry, the design the README table and the published card both advertise, failed one
+    test: the card's stated test total. Its message says to re-run capture_evidence.py, and
+    doing what the message says leaves this repository recommending a design that the file
+    carrying the designs no longer holds.
+
+    So the set is pinned by size and by sort key, and joined to the README's key table, which is
+    where a reader meets these four. That join is the one this repository already builds between
+    its prose and its evidence, applied to the artefact it skipped.
+    """
+    keys = [sort_key(store.name) for store in STORES]
+    assert keys == [
+        "(series, period)",
+        "(series, period)",
+        "(series, period, vintage)",
+        "(series, period, vintage, version)",
+    ], f"STORES now offers {keys}"
+
+    # The two that share a sort key are not the same claim: one loses the earlier vintage at
+    # merge time and the other never writes it at all, which is the harder half to argue.
+    batched = [store for store in STORES if "batch" in store.name or "insert" in store.name]
+    assert len(batched) == 1, "the two designs keyed on the observation no longer differ by how"
+
+    readme = (REPO / "README.md").read_text(encoding="utf-8")
+    offered = [line for line in readme.splitlines() if line.startswith("| `(series")]
+    assert offered, "the README no longer carries a key table, so there is nothing to join to"
+    assert [sort_key(line) for line in offered] == keys, (
+        "the README's key table and STORES no longer describe the same four designs, so a "
+        "reader is being offered a storage choice this repository does not measure"
+    )
+
+
+def test_exactly_one_design_is_the_one_this_repository_recommends() -> None:
+    """The entry a reader is meant to build, asserted to still be here.
+
+    Nothing else in this file cares which design wins. The tests above check each entry against
+    its own evidence, so a table containing only the three that lose history would satisfy every
+    one of them while the README went on recommending a fourth.
+    """
+    recommended = [store for store in STORES if not store.loses_history]
+    assert len(recommended) == 1, (
+        f"{len(recommended)} designs claim to lose nothing. A table with none of them recommends "
+        f"nothing, and a table with two has not decided"
+    )
+    assert sort_key(recommended[0].name) == "(series, period, vintage, version)", (
+        f"the design that loses nothing is now keyed {sort_key(recommended[0].name)}, and the "
+        f"whole argument is that the version has to be in the key"
+    )
 
 
 @pytest.mark.parametrize("store", STORES, ids=lambda s: s.name)
@@ -172,6 +242,26 @@ def test_the_design_this_repository_used_to_recommend_is_kept_as_an_exhibit() ->
     )
 
 
+@pytest.mark.parametrize("store", STORES, ids=lambda s: s.name)
+def test_a_corpus_figure_an_entry_names_is_a_figure_it_states(store: Store) -> None:
+    """An entry naming a corpus measurement and not stating it makes a reader take it on trust.
+
+    One test below already required this of the date-key exhibit, which was the entry whose
+    severity mattered most at the time. The two entries above it have since acquired corpus
+    figures of their own, typed into the same prose field, and nothing read them: this table
+    could have gone on saying an obvious key keeps 1 row out of 23,943 while naming the
+    measurement that says 2,533, which is what the README's key table did for months.
+    """
+    for key in store.evidence:
+        if not key.startswith("whole_corpus."):
+            continue
+        value = measurement(key)
+        assert f"{value:,}" in store.measured, (
+            f"{store.name} names {key}, which measured {value:,}, and its own description does "
+            f"not state that figure anywhere"
+        )
+
+
 def test_the_three_clocks_are_named_and_each_says_what_it_is_confused_with() -> None:
     """The repository's thesis, kept as data so it cannot drift out of the prose."""
     names = [clock.name for clock in CLOCKS]
@@ -190,7 +280,7 @@ def test_as_of_answers_the_headline_revision_from_the_real_corpus() -> None:
     Asked at three moments about one period: before the revision, after it, and today. A
     warehouse that gives the same answer to all three has thrown the history away.
     """
-    rows = triples("IKBJ")
+    rows = published("IKBJ")
     early = as_of(rows, "2021", "2023-06")
     late = as_of(rows, "2021", "2023-12")
     now = as_of(rows, "2021", "2026")
@@ -202,9 +292,82 @@ def test_as_of_answers_the_headline_revision_from_the_real_corpus() -> None:
     assert late[1] == "2023-10-11"
 
 
+def test_as_of_breaks_a_same_day_tie_on_the_version_and_not_on_the_caller_order() -> None:
+    """THE QUESTION THIS REPOSITORY EXISTS FOR, and every test here used to ask the easy one.
+
+    All four as_of tests asked about IKBJ 2021, which has no tie, so this file reproduced the
+    exact failure the README congratulates the repository for escaping: the check only ever
+    asked the question that could not go wrong. Under the old signature the version was not in
+    the tuple at all, the loop kept whichever qualifying row came last, and the publisher's
+    order was therefore decided by the caller's list order.
+
+    The publisher released 2015 APR twice on 2016-01-08, at -2548 and then -2584. -2548 is the
+    value docs/evidence/collapse records as destroyed by a date-only key, so an as-of query that
+    answers with it at this moment is making the same mistake the storage layer is measured for.
+    """
+    rows = published("IKBJ")
+    tied = [row for row in rows if row[0] == "2015 APR" and row[2] == "2016-01-08"]
+    assert len(tied) == 2, (
+        f"2015 APR is no longer published twice on 2016-01-08, so this corpus cannot ask a tied "
+        f"question and the claim has to move rather than this test relaxing: {tied}"
+    )
+    assert len({row[1] for row in tied}) == 2, (
+        "the two versions published that morning now carry the same value, so the tie decides "
+        "nothing and this is the easy question again"
+    )
+
+    answer = as_of(rows, "2015 APR", "2016-01-08")
+    assert answer == ("-2584", "2016-01-08", "v4"), (
+        f"as at 2016-01-08 the publisher's last word on 2015 APR was v4 at -2584, and as_of "
+        f"answered {answer}"
+    )
+
+    # THE SAME ROWS IN TWO OTHER ORDERS. Both satisfy the old "oldest first" precondition,
+    # because the two tied rows carry the same date, and under the old implementation the
+    # swapped one answered -2548.
+    swapped = list(rows)
+    left, right = rows.index(tied[0]), rows.index(tied[1])
+    swapped[left], swapped[right] = swapped[right], swapped[left]
+    assert as_of(swapped, "2015 APR", "2016-01-08") == answer, (
+        "swapping two rows carrying the same period and the same release date changed the "
+        "answer, so which version the publisher issued second is being decided by list order"
+    )
+    assert as_of(list(reversed(rows)), "2015 APR", "2016-01-08") == answer
+
+
+def test_as_of_orders_versions_as_numbers_and_not_as_labels() -> None:
+    """A LATENT DEFECT PINNED BY A CONSTRUCTED PAIR, because the corpus cannot ask it.
+
+    Every same-day pair in these four series is v2/v3, v3/v4 or v97/v98, and on all of them a
+    lexical comparison of the labels and a numeric one agree. So the ordering could be reverted
+    to a plain `max()` over the strings and no answer in this repository would change, which is
+    the shape of defect that ships: correct output from a mechanism nobody can rely on.
+
+    The same reasoning is written down two files away about `float("3.9") > float("3.13")`
+    ordering a published Python range backwards, and it is the same mistake: a version is a
+    tuple of integers, not a string and not a decimal.
+
+    Asked of a constructed pair rather than of the corpus, and said plainly: the corpus contains
+    no release date carrying a v9 and a v10, so there is no honest way to ask it there.
+    """
+    assert published_after("v10") > published_after("v9")
+    assert published_after("current") > published_after("v999")
+
+    same_morning = [
+        ("2020 JAN", "100", "2021-03-01", "v9"),
+        ("2020 JAN", "105", "2021-03-01", "v10"),
+    ]
+    assert as_of(same_morning, "2020 JAN", "2021-03") == ("105", "2021-03-01", "v10")
+    assert as_of(list(reversed(same_morning)), "2020 JAN", "2021-03") == (
+        "105",
+        "2021-03-01",
+        "v10",
+    )
+
+
 def test_as_of_says_nothing_rather_than_zero_before_the_publisher_spoke() -> None:
     """A period nobody had published yet is not a zero and not a missing key."""
-    rows = triples("IKBJ")
+    rows = published("IKBJ")
     assert as_of(rows, "2021", "2015") is None
 
 
@@ -215,7 +378,7 @@ def test_as_of_compares_a_year_correctly_and_not_by_string_length() -> None:
     a plain `<=` puts the release AFTER the question, because "2023-10-11" > "2023" lexically,
     so the October revision would be invisible to anyone asking about the year.
     """
-    rows = triples("IKBJ")
+    rows = published("IKBJ")
     by_year = as_of(rows, "2021", "2023")
     by_day = as_of(rows, "2021", "2023-12-31")
     assert by_year is not None and by_day is not None
@@ -227,8 +390,8 @@ def test_as_of_compares_a_year_correctly_and_not_by_string_length() -> None:
 
 def test_a_withdrawal_comes_back_as_a_withdrawal_and_not_as_a_number() -> None:
     """The publisher emptied a value. as_of must say so rather than skipping to the last number."""
-    rows = triples("IKBJ")
-    withdrawn = [(period, released) for period, value, released in rows if value == "WITHDRAWN"]
+    rows = published("IKBJ")
+    withdrawn = [(period, released) for period, value, released, _ in rows if value == "WITHDRAWN"]
     assert withdrawn, "no withdrawal in the corpus, so this cannot be tested here"
     period, released = withdrawn[0]
     answer = as_of(rows, period, released)

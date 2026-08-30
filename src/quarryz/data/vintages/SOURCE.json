@@ -10,7 +10,20 @@
     {
       "cdid": "DZLS",
       "title": "Public sector net borrowing excluding public sector banks, GBP million",
-      "why": "Annual 2020 has seventeen distinct value states across its publication history, which is the clearest case in the set of a number nobody should quote without a date.",
+      "why": "Almost every period this series has ever published has since been restated, so a warehouse holding only the latest figure is wrong about nearly all of it.",
+      "why_numbers": {
+        "periods": 570,
+        "periods_revised": 569,
+        "most_restated_period": "2016 Q2",
+        "most_restated_period_states": 54,
+        "largest_revision": {
+          "period": "2020",
+          "was": "253807",
+          "now": "277657",
+          "released": "2021-09-20",
+          "size": 23850
+        }
+      },
       "url": "https://www.ons.gov.uk/economy/governmentpublicsectorandtaxes/publicsectorfinance/timeseries/dzls/pusf/data",
       "versions": 131,
       "changes": 13926,
@@ -34,7 +47,20 @@
     {
       "cdid": "IKBJ",
       "title": "Total trade balance, current prices, seasonally adjusted, GBP million",
-      "why": "The largest single revision found anywhere in these four: annual 2021 moved from -28,039 to -3,518 between the versions published 2023-09-12 and 2023-10-11. It also carries the withdrawal case, April 1997, and 12 correction notices.",
+      "why": "It carries the largest single revision found anywhere in these four, which is the figure this repository quotes, and it carries the withdrawal case: a period the publisher emptied and later refilled.",
+      "why_numbers": {
+        "periods": 718,
+        "periods_revised": 716,
+        "most_restated_period": "2016 FEB",
+        "most_restated_period_states": 23,
+        "largest_revision": {
+          "period": "2021",
+          "was": "-28039",
+          "now": "-3518",
+          "released": "2023-10-11",
+          "size": 24521
+        }
+      },
       "url": "https://www.ons.gov.uk/economy/nationalaccounts/balanceofpayments/timeseries/ikbj/mret/data",
       "versions": 146,
       "changes": 6963,
@@ -68,7 +94,20 @@
     {
       "cdid": "KAC3",
       "title": "Average weekly earnings, year on year three month average growth, per cent",
-      "why": "A rate rather than a level, so a revision cannot be explained away as a rescaling. March 2010 has read 4.3, 2.9, 4.9 and 5.0 at different times.",
+      "why": "A rate rather than a level, so a revision here cannot be explained away as a rescaling of the whole series.",
+      "why_numbers": {
+        "periods": 304,
+        "periods_revised": 286,
+        "most_restated_period": "2021 APR",
+        "most_restated_period_states": 6,
+        "largest_revision": {
+          "period": "2010 APR",
+          "was": "4.2",
+          "now": "2.8",
+          "released": "2017-06-13",
+          "size": 2
+        }
+      },
       "url": "https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/earningsandworkinghours/timeseries/kac3/lms/data",
       "versions": 131,
       "changes": 1179,
@@ -92,7 +131,20 @@
     {
       "cdid": "MGRZ",
       "title": "People in employment, aged 16 and over, seasonally adjusted, thousands",
-      "why": "The mildest of the four, revised in 249 of 941 periods, which is the control: a warehouse that only ever sees heavy revisers is not being asked a hard question.",
+      "why": "The control, revised in a minority of its periods: a warehouse that only ever sees heavy revisers is not being asked a hard question.",
+      "why_numbers": {
+        "periods": 941,
+        "periods_revised": 249,
+        "most_restated_period": "2020 APR",
+        "most_restated_period_states": 8,
+        "largest_revision": {
+          "period": "2024 AUG",
+          "was": "33313",
+          "now": "33749",
+          "released": "2024-12-17",
+          "size": 436
+        }
+      },
       "url": "https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/timeseries/mgrz/lms/data",
       "versions": 127,
       "changes": 1875,
