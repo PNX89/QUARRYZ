@@ -6,8 +6,31 @@ somebody asks a question about last quarter.
 
     VALID TIME       the period the observation is about. 2021, or April 1997.
     TRANSACTION TIME the version the publisher released, which is when WE could first have
-                     known. Not a date: 28 dates in this corpus carry two versions.
+                     known. Not a date: 12 series-and-date pairs in this corpus, across 10
+                     distinct dates, carry two versions.
     SNAPSHOT TIME    when OUR table changed. An Iceberg snapshot, a git commit, a backup.
+
+THE NUMBER IN THIS FILE WAS FROM THE WRONG POPULATION, and the same mistake was already found
+and written up next door before it was found here.
+
+Three sentences below put that figure at 28, described as dates carrying two versions.
+Recomputed from the committed CSVs, the corpus has 12 series-and-date pairs carrying two
+versions, on 10 distinct dates, split DZLS 3, IKBJ 2, KAC3 4, MGRZ 3.
+
+(The old wording is deliberately not quoted verbatim here. The test that pins this recomputation
+also refuses the old sentence, and a note quoting it would fail the guard it is explaining, which
+is a trap this portfolio has now walked into three times.) The 2 for IKBJ is the same 2 that
+`tests/test_agreement.py` has always asserted, so one file in this repository was right about
+the corpus while this one, the file the README sends a reader to first, was not.
+
+`scripts/measure_agreement.py` carries the identical correction about a different figure: it
+once said 15 where the truth was 17, and its comment explains that 15 "is true of the
+publisher's version WALK and not of this table". A number counted over the publisher's release
+history is not a number about the rows that reached disk, because a second version that changed
+no value never appears in a corpus recording changes. That lesson was learned in one file and
+not carried to its neighbour, which is the only interesting thing about this defect.
+
+`tests/test_stores.py` recomputes the figure now, so it cannot drift again.
 
 Snapshot time is the one that gets used as a substitute for transaction time, because a
 warehouse has it for free and it is superficially the same shape. It is not the same fact. A
@@ -60,9 +83,9 @@ CLOCKS: tuple[Clock, ...] = (
     Clock(
         name="transaction time",
         answers="when could we first have known this number",
-        confused_with="the release date alone, which is not unique: 28 dates in this corpus "
-        "carry two versions each, so a table keyed on the date silently merges two states of "
-        "the world",
+        confused_with="the release date alone, which is not unique: 12 series-and-date pairs "
+        "in this corpus carry two versions each, so a table keyed on the date silently merges "
+        "two states of the world",
     ),
     Clock(
         name="snapshot time",
@@ -131,8 +154,8 @@ STORES: tuple[Store, ...] = (
         keeps="every version EXCEPT the ones a publisher released on the same day as another",
         cannot_answer="what the first of two versions published on one day said, because it is "
         "not there to be asked",
-        loss_decided_by="the publisher publishing twice in a day, which they do: 28 release "
-        "dates in this corpus carry two versions each",
+        loss_decided_by="the publisher publishing twice in a day, which they do: 12 "
+        "series-and-date pairs in this corpus carry two versions each",
         measured="IKBJ period 2015 APR was published twice on 2016-01-08, as -2548 and -2584. "
         "Loaded into this design both rows produce ONE row and the earlier value is gone. Across "
         "the whole committed corpus a date-only key keeps 23,872 of 23,943 rows and destroys 71 "
