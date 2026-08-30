@@ -13,6 +13,7 @@ not compare its output is a job that proves the harness does not crash.
 
 from __future__ import annotations
 
+import ast
 import pathlib
 import re
 
@@ -90,14 +91,65 @@ def test_every_evidence_directory_has_a_summary_that_is_json() -> None:
         json.loads(summary.read_text(encoding="utf-8"))
 
 
+def joined_path(node: ast.expr) -> str | None:
+    """A chain of `/` over string literals, flattened. Anything else is not a path we can read."""
+    if isinstance(node, ast.Constant):
+        return node.value if isinstance(node.value, str) else None
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        right = joined_path(node.right)
+        if right is None:
+            return None
+        left = joined_path(node.left)
+        return f"{left}/{right}" if left else right
+    return None
+
+
+def paths_the_harnesses_write() -> dict[str, list[str]]:
+    """Where each script ASSIGNS its output, read as an assignment rather than as prose.
+
+    THE WORD WAS SEARCHED FOR AND NOT THE PATH, and a mutation walked through the difference.
+    The check was `directory.name in text` over every script concatenated, so the bare words
+    "snapshots", "agreement", "collapse" and "gate" satisfied it from the harnesses' own
+    docstrings and comments. Pointing `OUT` in scripts/measure_snapshots.py at a scratch
+    directory left it green, and so did the CI step behind it: `git diff --exit-code --
+    docs/evidence/snapshots` compares a directory nothing rewrote and exits 0.
+
+    So the assignments are parsed. A sentence about where a harness writes cannot satisfy this;
+    only an assignment naming the path can.
+    """
+    written: dict[str, list[str]] = {}
+    for path in sorted((REPO / "scripts").glob("*.py")):
+        found = []
+        for node in ast.parse(path.read_text(encoding="utf-8")).body:
+            if not isinstance(node, ast.Assign):
+                continue
+            target = joined_path(node.value)
+            if target and target.startswith("docs/evidence/"):
+                found.append(target)
+        written[path.name] = found
+    # `$ROOT/` and not a bare path, because a shell harness `cd`s into dbt/ and a relative one
+    # would then name a directory that does not exist.
+    for path in sorted((REPO / "scripts").glob("*.sh")):
+        text = path.read_text(encoding="utf-8")
+        written[path.name] = re.findall(
+            r'^[A-Z_]+="\$ROOT/(docs/evidence/[^"]+)"$', text, re.MULTILINE
+        )
+    return written
+
+
 def test_a_script_writes_every_evidence_directory() -> None:
     """A committed artefact nobody can regenerate is a claim about the past."""
-    scripts = list((REPO / "scripts").glob("*.sh")) + list((REPO / "scripts").glob("*.py"))
-    text = "\n".join(path.read_text(encoding="utf-8") for path in scripts)
+    written = paths_the_harnesses_write()
+    assert any(written.values()), (
+        "no script under scripts/ assigns a path under docs/evidence at all, so either every "
+        "harness has stopped writing evidence or this test has stopped being able to read them"
+    )
     for directory in evidence_directories():
-        assert directory.name in text, (
-            f"nothing under scripts/ mentions docs/evidence/{directory.name}, so that evidence "
-            f"cannot be regenerated"
+        target = f"docs/evidence/{directory.name}"
+        assert any(target in found for found in written.values()), (
+            f"no script under scripts/ writes to {target}, so that evidence cannot be "
+            f"regenerated and the CI step diffing it is comparing a directory nothing rewrote. "
+            f"What the scripts do write: {written}"
         )
 
 

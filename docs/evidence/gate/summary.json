@@ -2,6 +2,26 @@
   "undeclared_release_groups_when_ledger_emptied": 7,
   "revisions_in_the_declared_window": 1058,
   "releases_declared_in_the_ledger": 7,
+  "a_declaration_with_no_count": {
+    "series": "IKBJ",
+    "released": "2023-10-11",
+    "version": "v111",
+    "periods_it_moved": 445,
+    "undeclared_publications": 1
+  },
+  "one_morning_declared_as_one_release": {
+    "series": "IKBJ",
+    "released": "2016-01-08",
+    "publications": {
+      "v3": 16,
+      "v4": 14
+    },
+    "undeclared_publications": 2,
+    "window": {
+      "warehouse_as_at": "2015-12",
+      "incoming_as_at": "2016-02"
+    }
+  },
   "kinds_in_the_older_windows": {
     "withdrawal_window": {
       "changed": 845,

@@ -8,6 +8,7 @@ inside it are checked another way, which is what this file is.
 
 from __future__ import annotations
 
+import html
 import json
 import pathlib
 import re
@@ -20,11 +21,58 @@ import pytest
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 FACTS = REPO / "docs" / "evidence" / "facts.json"
+CARD = REPO / "site" / "index.html"
+DEMO = REPO / "docs" / "evidence" / "demo.txt"
 
 
 def facts() -> dict[str, Any]:
     loaded: dict[str, Any] = json.loads(FACTS.read_text(encoding="utf-8"))
     return loaded
+
+
+def card() -> str:
+    """The published page, or a skip. A card is written at publication and can be absent."""
+    if not CARD.exists():
+        pytest.skip("no card is committed yet, so there is nothing published to check")
+    return CARD.read_text(encoding="utf-8")
+
+
+def measured_figures() -> set[int]:
+    """Every integer any harness recorded, flattened out of the committed summaries.
+
+    Flattened rather than listed key by key, so a harness that starts recording a new figure
+    does not have to be added here before the card is allowed to quote it. What this cannot do
+    is notice a figure the page states and no harness produces, which is the direction that
+    matters and the one it is used for below.
+    """
+    found: set[int] = set()
+
+    def walk(node: Any) -> None:
+        if isinstance(node, bool):
+            return
+        if isinstance(node, int):
+            found.add(abs(node))
+        elif isinstance(node, str):
+            if node.lstrip("-").isdigit():
+                found.add(abs(int(node)))
+        elif isinstance(node, dict):
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    for summary in sorted((REPO / "docs" / "evidence").glob("*/summary.json")):
+        walk(json.loads(summary.read_text(encoding="utf-8")))
+    walk(facts())
+
+    # The headline move is the DIFFERENCE between two recorded vintages, so no summary carries
+    # it as a figure of its own and the page would otherwise be quoting an unmeasured number.
+    vintages = json.loads(
+        (REPO / "docs" / "evidence" / "snapshots" / "summary.json").read_text(encoding="utf-8")
+    )["by_vintage"]
+    found.add(abs(int(vintages["as_at_2023_12"]) - int(vintages["as_at_2023_06"])))
+    return found
 
 
 def test_the_stated_test_total_is_the_one_this_suite_collects() -> None:
@@ -83,26 +131,91 @@ def test_the_capture_date_is_not_in_the_future() -> None:
     )
 
 
-def test_the_card_is_not_committed_before_the_repository_ships() -> None:
-    """A card is written at publication, and one that arrives early advertises nothing real.
+def test_the_published_card_carries_no_banned_dash() -> None:
+    """The one character that gets a page rejected, checked before it is published.
 
-    If `site/index.html` exists, it must be the generated card rather than a placeholder, and
-    the demo output it shows has to be the committed capture rather than a paste.
+    That the card was GENERATED from the capture rather than pasted is checked below, against
+    the whole transcript. This test kept only the half a comparison cannot cover: the rest of
+    the page, which is written from a shared manifest and never diffed against anything.
     """
-    card = REPO / "site" / "index.html"
-    if not card.exists():
-        return
-    html = card.read_text(encoding="utf-8")
-    demo = (REPO / "docs" / "evidence" / "demo.txt").read_text(encoding="utf-8")
-    first = next(line for line in demo.splitlines() if line.strip())
-    assert first in html, (
-        "the published card does not contain the first line of the captured demo output, so it "
-        "was not generated from it"
-    )
+    published = card()
     # WRITTEN AS ESCAPES, NOT AS THE CHARACTERS. A check for a character cannot be the thing
     # that introduces it, and the linter catches the literal form for exactly that reason.
     for dash in ("\u2014", "\u2013"):
-        assert dash not in html, f"the published card contains {dash!r}"
+        assert dash not in published, f"the published card contains {dash!r}"
+
+
+def test_the_transcript_on_the_card_is_the_captured_demo_in_full() -> None:
+    """THE SENTENCE ON THE CARD THAT WAS NOT TRUE, and this is what makes it true.
+
+    The card tells its reader, in its own body, that it "is committed to the repository and a
+    test fails when it stops matching a live run, so this page cannot quietly drift from the
+    code it describes". What existed was a check on the FIRST non-blank line of demo.txt, here
+    and again in the Pages publication guard, so 26 of the transcript's 27 lines were unchecked
+    in both places. Editing "keeps  2,533" to "keeps  9,999" on the card left the suite green
+    and the publication guard accepting, and the page would have deployed.
+
+    Compared after unescaping, because the card is HTML and the capture is not: a transcript
+    containing an ampersand would otherwise fail here for being correctly escaped.
+    """
+    published = card()
+    block = re.search(r"<pre[^>]*>(.*?)</pre>", published, re.S)
+    assert block, "the card no longer shows the demo transcript at all"
+    shown = html.unescape(block.group(1)).strip("\n")
+    captured = DEMO.read_text(encoding="utf-8").strip("\n")
+    assert shown == captured, (
+        "the transcript on the published card is not the committed capture. Re-generate the "
+        "card, or if the demo's output has moved, re-run scripts/capture_evidence.py first"
+    )
+
+
+def test_the_facts_strip_on_the_card_states_the_captured_facts() -> None:
+    """Three cells, each a second copy of a figure, and nothing reconciled any of them.
+
+    The strip is the most prominent thing on the page after the headline, and every cell was
+    hand-carried from facts.json by the generator. Changing the test count to 4242 published a
+    card advertising a suite four times the size of the one that runs.
+
+    Asserted as the whole strip rather than cell by cell, so a cell that disappears is a failure
+    too: a card that has quietly stopped stating its test total is not a card that passed.
+    """
+    published = card()
+    strip = re.search(r'<dl class="facts">(.*?)</dl>', published, re.S)
+    assert strip, "the card no longer carries a facts strip"
+    stated = dict(re.findall(r"<dt>([^<]+)</dt><dd>([^<]*)</dd>", strip.group(1)))
+    assert stated == {
+        "Tests": str(facts()["tests"]),
+        "Python": facts()["python"],
+        "Release": facts()["release"],
+    }, f"the card states {stated} and docs/evidence/facts.json records {facts()}"
+
+
+def test_no_figure_the_card_quotes_is_one_nothing_measured() -> None:
+    """The claim paragraph, which is prose from a shared manifest and quotes two measurements.
+
+    THE FIGURE IN THE SENTENCE THAT CARRIES IT, and not a search of the page for the figure: a
+    page this long contains any small number somewhere, so finding one proves nothing. What is
+    read is the claim paragraph, and every number in it has to be one a harness produced.
+    Rewriting "destroys 71 of them" to "destroys 999 of them" published unchallenged.
+
+    Numbers of two digits and up, because a one-digit figure in a sentence is usually a count of
+    something on the page rather than a measurement, and no allowlist can tell a wrong 7 from a
+    right one.
+    """
+    published = card()
+    claim = re.search(r'<p class="claim">(.*?)</p>', published, re.S)
+    assert claim, "the card no longer makes a claim, which is the only thing a card is for"
+    quoted = {
+        int(token.replace(",", ""))
+        for token in re.findall(r"\b\d{1,3}(?:,\d{3})*\b", claim.group(1))
+        if len(token.replace(",", "")) > 1
+    }
+    assert quoted, "the claim paragraph quotes no measurement at all"
+    invented = sorted(quoted - measured_figures())
+    assert invented == [], (
+        f"the card claims {invented}, and nothing under docs/evidence produces those figures. "
+        f"Either a measurement moved and the card was left behind, or the number was typed"
+    )
 
 
 def test_the_python_range_is_the_gating_matrix_and_orders_as_versions(

@@ -20,4 +20,5 @@ argMax(value, (vintage, version)) at v4 -> -2584
 rows loaded                            -> 23943
 surviving a (series, period, released, version) key -> 23943
 surviving a (series, period, released) key          -> 23872
+surviving a (series, period) key                    -> 2533
 published values a date-only key destroys           -> 71

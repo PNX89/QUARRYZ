@@ -59,7 +59,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-__all__ = ["CLOCKS", "STORES", "Clock", "Store", "as_of"]
+__all__ = ["CLOCKS", "STORES", "Clock", "Store", "as_of", "published_after"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,8 +133,13 @@ STORES: tuple[Store, ...] = (
         loss_decided_by="merge scheduling, and how much unrelated data has arrived since. Not "
         "the data being queried and not the query",
         measured="two vintages inserted separately read as 2 rows before any merge and 1 row "
-        "after OPTIMIZE TABLE ... FINAL. The same unchanged query, two answers",
-        evidence=("naive_key.rows_before_merge", "naive_key.rows_after_optimize"),
+        "after OPTIMIZE TABLE ... FINAL. The same unchanged query, two answers. Across the whole "
+        "committed corpus this key keeps 2,533 of 23,943 rows",
+        evidence=(
+            "naive_key.rows_before_merge",
+            "naive_key.rows_after_optimize",
+            "whole_corpus.kept_by_a_period_key",
+        ),
     ),
     Store(
         name="ReplacingMergeTree keyed on (series, period), loaded in one batch",
@@ -145,8 +150,13 @@ STORES: tuple[Store, ...] = (
         loss_decided_by="nothing at all. It happens at write time, in one part, with no merge "
         "involved and nothing to schedule",
         measured="both vintages in a single INSERT produce 1 row in 1 active part. The earlier "
-        "value was never written to disk",
-        evidence=("one_insert.rows", "one_insert.active_parts"),
+        "value was never written to disk. The corpus figure is the same 2,533: what changes is "
+        "when the history goes, not how much of it",
+        evidence=(
+            "one_insert.rows",
+            "one_insert.active_parts",
+            "whole_corpus.kept_by_a_period_key",
+        ),
     ),
     Store(
         name="ReplacingMergeTree keyed on (series, period, vintage) where vintage is a DATE",
@@ -185,27 +195,60 @@ STORES: tuple[Store, ...] = (
 )
 
 
+def published_after(version: str) -> tuple[int, int]:
+    """Ordering over version labels, which are `v<number>` or `current`.
+
+    NUMERIC AND NOT LEXICAL, because "v9" is greater than "v10" as strings. On the morning a
+    publisher issues either side of a round ten, a lexical comparison answers with the earlier
+    version. No pair in the committed corpus has that shape, so this ordering and a lexical one
+    agree on every version actually present and a revert to comparing the labels would change no
+    answer here. That is the reason it is pinned by a test rather than left to the data.
+
+    `current` is the live document and therefore the newest. It carries the latest release date
+    of every series in this corpus, so it never has to break a tie, and giving it a rank rather
+    than a number is what keeps that true if it ever does.
+    """
+    return (1, 0) if version == "current" else (0, int(version[1:]))
+
+
 def as_of(
-    rows: list[tuple[str, str, str]],
+    rows: list[tuple[str, str, str, str]],
     period: str,
     known_by: str,
-) -> tuple[str, str] | None:
-    """What the publisher had said about `period` by `known_by`, with the version that said it.
+) -> tuple[str, str, str] | None:
+    """What the publisher had said about `period` by `known_by`, and which version said it.
 
-    `rows` are (period, value, released) triples, oldest first. The return is the value and the
-    release date it came from, or None when the publisher had said nothing yet, which is a
-    different answer from a value of zero and from a withdrawal.
+    `rows` are (period, value, released, version) quadruples in any order. The return is the
+    value, the release date and the version label, or None when the publisher had said nothing
+    yet, which is a different answer from a value of zero and from a withdrawal.
 
-    THE COMPARISON IS ON THE PREFIX OF THE DATE, deliberately. A caller asking as at "2023"
-    means the end of 2023, and a caller asking as at "2023-10" means the end of that month. A
-    lexical prefix comparison over ISO dates gets both right, and a naive `<=` against a string
-    of a different length gets the first one wrong in a way that is invisible until somebody
-    asks a question about a year.
+    THE VERSION IS IN THE TUPLE, and taking it out is the defect this whole repository is
+    about. This function used to accept (period, value, released) triples and keep the LAST row
+    satisfying the bound, so at a release date carrying two versions the answer was decided by
+    the caller's list order: IKBJ 2015 APR was published twice on 2016-01-08, at -2548 and then
+    -2584, and swapping those two rows swapped the answer. Its stated precondition was "oldest
+    first", which two rows carrying the same date satisfy in either order, so a caller had no
+    way to sort into a compliant order out of the data the signature accepted. The repository
+    proves the same defect in ClickHouse three files away and calls `argMax(value, released)`
+    undefined at a tie; the Python here keyed on the date and hoped.
+
+    So nothing is assumed about the order. The answer is the largest (released, version) at or
+    before the bound, which is the same key `dbt/models/warehouse.sql` and all three engines in
+    `scripts/measure_agreement.py` order on.
+
+    THE DATE COMPARISON IS ON THE PREFIX, deliberately. A caller asking as at "2023" means the
+    end of 2023, and a caller asking as at "2023-10" means the end of that month. A lexical
+    prefix comparison over ISO dates gets both right, and a naive `<=` against a string of a
+    different length gets the first one wrong in a way that is invisible until somebody asks a
+    question about a year.
     """
-    seen: tuple[str, str] | None = None
-    for row_period, value, released in rows:
+    best: tuple[tuple[str, tuple[int, int]], tuple[str, str, str]] | None = None
+    for row_period, value, released, version in rows:
         if row_period != period:
             continue
-        if released[: len(known_by)] <= known_by:
-            seen = (value, released)
-    return seen
+        if released[: len(known_by)] > known_by:
+            continue
+        ranked = (released, published_after(version))
+        if best is None or ranked > best[0]:
+            best = (ranked, (value, released, version))
+    return best[1] if best else None
