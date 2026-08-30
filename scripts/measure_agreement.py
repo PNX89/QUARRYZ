@@ -46,9 +46,11 @@ SERIES = "IKBJ"
 #: ignoring the as-of bound answers visibly wrongly rather than subtly.
 #:
 #: 2016-01 is chosen because it is a moment where the RELEASE DATE TIE DECIDES THE ANSWER. This
-#: series has 17 periods whose latest release date carries two versions with different values,
-#: and at most cut-offs a later release has superseded them so the tie never decides anything.
-#: Asking only at 2023-08 is asking a question the tie cannot answer wrongly.
+#: series has 17 (period, release date) pairs that carry two versions with different values, 14
+#: of them sharing 2016-01-08 and the rest 2023-06-13, so no single cut-off can have more than 14
+#: of them decided by the tie at once. At most cut-offs a later release has superseded the pair,
+#: so the tie never decides anything. Asking only at 2023-08 is asking a question the tie cannot
+#: answer wrongly.
 MOMENTS = ("2023-08", "2016-01")
 
 
@@ -62,8 +64,9 @@ def from_clickhouse(as_at: str, tie_break: bool = True) -> dict[str, str]:
 
     THE KEY IS A TUPLE AND NOT THE DATE, and this is the correction that matters most in this
     file. `argMax(value, released)` has no defined answer when two rows share the largest key,
-    and 17 periods in this series have exactly that: one release date carrying two versions with
-    different values. Measured, the two forms disagree on 14 periods at the 2016-01 cut-off.
+    and this series has 17 (period, release date) pairs with exactly that: two versions carrying
+    different values on the same release date. Measured, the two forms disagree on 14 periods at
+    the 2016-01 cut-off, which is every pair sharing that date.
 
     The first version of this script used the date alone and the agreement check passed, because
     it only ever asked at 2023-08 where later releases had superseded every tied period. A query

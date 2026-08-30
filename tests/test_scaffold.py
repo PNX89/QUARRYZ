@@ -14,6 +14,8 @@ import subprocess
 import tomllib
 from typing import Any
 
+import pytest
+
 REPO = pathlib.Path(__file__).resolve().parents[1]
 
 
@@ -49,9 +51,17 @@ def test_every_declared_marker_is_carried_by_a_test() -> None:
     declared three, deselected all three by default, and two of them were carried by NO TEST AT
     ALL. Worse, the test policing the list asserted the exact three names, so the assertion
     cemented the fiction it existed to prevent. What is checked here is usage, not names.
+
+    NO MARKERS ARE DECLARED YET, so every assertion below is over the empty set and passes no
+    matter what this file does. Left as a bare pass, that reads in a test report exactly like a
+    check that ran and found nothing wrong, when it is a check that had nothing to check.
+    Skipped explicitly instead, so the report says so, and this stops skipping itself the day
+    `pyproject.toml` declares a first marker.
     """
     config = pyproject()["tool"]["pytest"]["ini_options"]
     declared = {str(entry).split(":")[0] for entry in config.get("markers", [])}
+    if not declared:
+        pytest.skip("no markers are declared in pyproject.toml yet")
 
     used: set[str] = set()
     for path in sorted((REPO / "tests").glob("test_*.py")):

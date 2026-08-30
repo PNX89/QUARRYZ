@@ -100,13 +100,18 @@ echo "==> the design this repository called the cure, on two versions published 
 # twice on 2016-01-08, as v3 at -2548 and v4 at -2584, and both are in
 # src/quarryz/data/vintages/IKBJ.csv. A fixture would have let me choose two different dates and
 # never find this.
+#
+# SEPARATE INSERTS, same as the naive table above, and for the same reason: this is the
+# mechanism the README and this transcript both describe, a merge overwriting an earlier
+# vintage. One INSERT holding both rows collapses them at write time instead, before OPTIMIZE
+# runs at all, which is the write-time defect the naive table's own second exhibit already
+# covers a few lines up and not the merge this table exists to show.
 ch "CREATE TABLE by_date (
       series String, period String, value Float64, vintage Date
     ) ENGINE = ReplacingMergeTree
     ORDER BY (series, period, vintage)"
-ch "INSERT INTO by_date VALUES
-      ('IKBJ', '2015 APR', -2548, '2016-01-08'),
-      ('IKBJ', '2015 APR', -2584, '2016-01-08')"
+ch "INSERT INTO by_date VALUES ('IKBJ', '2015 APR', -2548, '2016-01-08')"
+ch "INSERT INTO by_date VALUES ('IKBJ', '2015 APR', -2584, '2016-01-08')"
 BY_DATE_BEFORE=$(ch "SELECT count() FROM by_date")
 ch "OPTIMIZE TABLE by_date FINAL" >/dev/null
 BY_DATE_AFTER=$(ch "SELECT count() FROM by_date")

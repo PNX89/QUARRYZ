@@ -48,15 +48,16 @@ def test_the_three_engines_agree_about_every_period(as_at: str) -> None:
 def test_the_agreement_was_tested_where_the_tie_can_decide_it() -> None:
     """The half that makes the agreement worth anything.
 
-    17 periods in this series have a latest release date carrying two versions with different
-    values. At 2023-08 later releases have superseded every one of them, so no tie decides
-    anything and three engines would agree even if one of them broke ties by coin toss. At
-    2016-01 the tie decides 14 periods.
+    17 (period, release date) pairs in this series carry two versions with different values, 14
+    of them on 2016-01-08 and the rest on 2023-06-13, so no cut-off can have more than 14 of them
+    decided by the tie at once. At 2023-08 a later release has superseded every one of them, so
+    no tie decides anything and three engines would agree even if one of them broke ties by coin
+    toss. At 2016-01 the tie decides all 14 periods sharing that date.
     """
     decided = moments()["2016-01"]["periods_where_the_tie_decided_the_answer"]
-    assert len(decided) > 0, (
-        "no period is decided by the release-date tie at either moment, so this agreement was "
-        "tested only where it cannot fail"
+    assert len(decided) == 14, (
+        f"the release-date tie now decides {len(decided)} periods at 2016-01, and the docstring "
+        f"above says 14"
     )
     assert moments()["2023-08"]["periods_where_the_tie_decided_the_answer"] == [], (
         "a tie now decides an answer at 2023-08 as well, which is a change in the corpus worth "

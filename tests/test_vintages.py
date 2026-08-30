@@ -434,3 +434,83 @@ def test_none_of_these_series_belongs_to_the_sibling_that_also_reads_ons() -> No
     """
     theirs = {"IHYQ", "MGSX", "ABMI", "D7BT"}
     assert not theirs & set(series_names())
+
+
+def _capture_vintages() -> Any:
+    import sys
+
+    sys.path.insert(0, str(REPO / "scripts"))
+    import capture_vintages
+
+    return capture_vintages
+
+
+def test_a_single_series_capture_merges_into_the_existing_file_instead_of_replacing_it() -> None:
+    """The documented `capture_vintages.py IKBJ` form used to write `"series": captured` with
+    `captured` holding only IKBJ, so the other three entries were deleted from SOURCE.json even
+    though their CSVs stayed on disk untouched. `merge_series` is the fix, exercised here with
+    fabricated entries standing in for a real, network-fetched capture: it must carry every
+    series `merge_series` was not asked to update straight through, unchanged, and take the new
+    value only for the one that was.
+    """
+    capture_vintages = _capture_vintages()
+    existing = [{"cdid": cdid, "marker": "old"} for cdid in sorted(capture_vintages.SERIES)]
+    captured = [{"cdid": "IKBJ", "marker": "new"}]
+
+    merged = capture_vintages.merge_series(existing, captured)
+
+    assert {entry["cdid"] for entry in merged} == set(capture_vintages.SERIES)
+    by_cdid = {entry["cdid"]: entry for entry in merged}
+    assert by_cdid["IKBJ"]["marker"] == "new", "the series just captured was not updated"
+    for cdid in capture_vintages.SERIES:
+        if cdid != "IKBJ":
+            assert by_cdid[cdid]["marker"] == "old", (
+                f"{cdid} was not requested this run and should have been carried over "
+                f"unchanged, not replaced or dropped"
+            )
+
+
+def test_the_docstrings_withdrawal_example_matches_the_corpus() -> None:
+    """`capture_vintages.py`'s worked example for trap three used to say IKBJ's April 1997 read
+    empty "for four publications" between 196 and 257. The corpus holds thirty eight, v18 to
+    v55, spanning two and a half years. Recomputed here from the committed CSV, not from the
+    docstring, so a future edit that retypes another wrong count is caught the same way this one
+    should have been.
+    """
+    capture_vintages = _capture_vintages()
+    history = sorted(
+        (row["released"], row["version"], row["value"])
+        for row in rows("IKBJ")
+        if row["period"] == "1997 APR"
+    )
+    assert history[0][1:] == ("v6", "196")
+    withdrawal = next(entry for entry in history if entry[2] == WITHDRAWN)
+    restoration = next(
+        entry for entry in history if entry[0] > withdrawal[0] and entry[2] != WITHDRAWN
+    )
+    assert (withdrawal[0], withdrawal[1]) == ("2017-04-06", "v18")
+    assert (restoration[0], restoration[1], restoration[2]) == ("2019-10-09", "v56", "257")
+
+    span = int(restoration[1][1:]) - int(withdrawal[1][1:])
+    assert span == 38, f"the withdrawal now spans {span} versions, and the docstring must say so"
+
+    docstring = capture_vintages.__doc__ or ""
+    assert "four publications" not in docstring, (
+        "the docstring's worked example understates the withdrawal span again; it held empty "
+        "for 38 versions (v18 to v55), not four"
+    )
+
+
+def test_merge_series_refuses_a_write_that_would_lose_a_series_entirely() -> None:
+    """The other half of the guard: a first capture has to be a full one.
+
+    If a series has no entry in the existing file and this run did not capture it either, there
+    is nothing to carry forward, and writing the file anyway would silently drop it from
+    SOURCE.json for good.
+    """
+    capture_vintages = _capture_vintages()
+    existing = [{"cdid": "IKBJ", "marker": "old"}]
+    captured = [{"cdid": "DZLS", "marker": "new"}]
+
+    with pytest.raises(SystemExit):
+        capture_vintages.merge_series(existing, captured)
