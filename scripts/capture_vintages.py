@@ -33,9 +33,10 @@ explicitly rather than by accident. They are the reason this repository exists.
    from inside each version document.
 
 3. AN EMPTY VALUE IS NOT A NULL AND NOT AN ABSENCE. IKBJ's April 1997 read 196, then an empty
-   string for four publications, then 257, and reads 402 today. The period key stays in the
-   document and only the value is emptied, so `""` is recorded as WITHDRAWN and distinguished
-   from a period that has not appeared yet.
+   string from v18 to v55, thirty eight publications across two and a half years, then 257 at
+   v56, and reads 402 today. The period key stays in the document and only the value is
+   emptied, so `""` is recorded as WITHDRAWN and distinguished from a period that has not
+   appeared yet.
 
 4. `len(versions)` OVER-COUNTS. IKBJ's array holds 192 entries with 145 distinct labels. The
    walk goes to a 404 rather than trusting the length, and an empty array does not mean a series
@@ -295,12 +296,39 @@ def capture(cdid: str) -> dict[str, Any]:
     }
 
 
+def merge_series(
+    existing: list[dict[str, Any]], captured: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Combine a fresh capture with what SOURCE.json already held, keyed on cdid.
+
+    The documented single-series form, `capture_vintages.py IKBJ`, used to feed `captured`
+    straight into `"series"`, so the other three entries and their CSVs' metadata were replaced
+    by nothing. A capture no longer requested is kept from `existing` instead of dropped, so
+    running one series updates that one entry and leaves the rest exactly as they were.
+    """
+    by_cdid = {entry["cdid"]: entry for entry in existing}
+    by_cdid.update({entry["cdid"]: entry for entry in captured})
+    missing = sorted(cdid for cdid in SERIES if cdid not in by_cdid)
+    if missing:
+        raise SystemExit(
+            f"SOURCE.json has no prior entry for {missing} and this capture did not request "
+            f"{'it' if len(missing) == 1 else 'them'} either. Run a full capture first: "
+            "uv run python scripts/capture_vintages.py"
+        )
+    return [by_cdid[cdid] for cdid in sorted(SERIES)]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("cdid", nargs="*", default=sorted(SERIES), help="which series to capture")
     args = parser.parse_args()
 
     captured = [capture(cdid.upper()) for cdid in args.cdid]
+
+    source_path = DATA / "SOURCE.json"
+    existing: list[dict[str, Any]] = []
+    if source_path.exists():
+        existing = json.loads(source_path.read_text(encoding="utf-8")).get("series", [])
 
     source = {
         "publisher": "Office for National Statistics",
@@ -313,7 +341,7 @@ def main() -> int:
         "api_note": "The api.ons.gov.uk form was retired on 25/11/2024. The live form carries "
         "the topic path and is the one recorded in each url below.",
         "captured": time.strftime("%Y-%m-%d"),
-        "series": captured,
+        "series": merge_series(existing, captured),
     }
     (DATA / "SOURCE.json").write_text(json.dumps(source, indent=2) + "\n", encoding="utf-8")
     print(f"\nwrote {DATA / 'SOURCE.json'}")

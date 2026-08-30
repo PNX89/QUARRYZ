@@ -242,6 +242,25 @@ def test_the_design_this_repository_used_to_recommend_is_kept_as_an_exhibit() ->
     )
 
 
+def test_the_date_key_exhibit_measures_a_merge_and_not_a_write() -> None:
+    """The harness once loaded both same-day rows in one INSERT, so `by_date` started at 1 row
+    and OPTIMIZE changed nothing, 1 to 1, while the README and this file's own transcript
+    describe the second row overwriting the first AT MERGE TIME, the same mechanism the naive
+    exhibit above demonstrates. A harness measuring write-time collapse under a comment claiming
+    a merge is the naive table's second exhibit wearing the wrong table's name.
+
+    So this asserts the shape `test_the_obvious_design_loses_a_vintage_and_the_evidence_says_so`
+    asserts for the naive table: two rows on disk before OPTIMIZE, one after. Before is the half
+    that distinguishes a merge from a write, and nothing checked it.
+    """
+    before = measurement("vintage_as_a_date.rows_before_merge")
+    after = measurement("vintage_as_a_date.rows_after_optimize")
+    assert before == 2 and after == 1, (
+        f"the date-key table read {before} rows before OPTIMIZE and {after} after, so this "
+        f"exhibit is not measuring a merge collapsing two written rows into one"
+    )
+
+
 @pytest.mark.parametrize("store", STORES, ids=lambda s: s.name)
 def test_a_corpus_figure_an_entry_names_is_a_figure_it_states(store: Store) -> None:
     """An entry naming a corpus measurement and not stating it makes a reader take it on trust.

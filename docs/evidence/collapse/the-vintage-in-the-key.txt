@@ -3,7 +3,7 @@ $ clickhouse local, two versions the publisher released on the SAME DAY
 # Real rows from src/quarryz/data/vintages/IKBJ.csv, not a fixture.
 
 --- ORDER BY (series, period, vintage), which this repository called the cure ---
-SELECT count() FROM by_date            -> 1
+SELECT count() FROM by_date            -> 2
 after OPTIMIZE TABLE by_date FINAL     -> 1
 the value still readable               -> -2584
 

@@ -11,7 +11,7 @@
     "active_parts": 1
   },
   "vintage_as_a_date": {
-    "rows_before_merge": 1,
+    "rows_before_merge": 2,
     "rows_after_optimize": 1,
     "surviving_value": "-2584"
   },
